@@ -365,18 +365,7 @@ function onDragEnd() {
   dragSrcId = null;
 }
 
-// ─── Delete modal ─────────────────────────────────────────────────────────────
-confirmDeleteBtn.addEventListener("click", async () => {
-  if (!pendingDeleteId) return;
-  try {
-    await deleteDoc(doc(db, "casos", pendingDeleteId));
-    showToast("Caso excluído.");
-  } catch (err) {
-    showToast("Erro ao excluir: " + err.message, "error");
-  }
-  pendingDeleteId = null;
-  deleteModal.hidden = true;
-});
+// ─── Delete modal (handler centralizado no bloco de Segunda Opinião) ──────────
 
 cancelDeleteBtn.addEventListener("click", () => {
   pendingDeleteId = null;
@@ -423,3 +412,237 @@ function escHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── Segunda Opinião ────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let allOpinioes = [];
+let editingOpiniaoId = null;
+
+// DOM refs
+const opiniaoFormToggle  = document.getElementById("opiniao-form-toggle");
+const opiniaoFormBody    = document.getElementById("opiniao-form-body");
+const opiniaoForm        = document.getElementById("opiniao-form");
+const opiniaoFormTitle   = document.getElementById("opiniao-form-title");
+const opCancelEditBtn    = document.getElementById("op-cancel-edit");
+const opAVerList         = document.getElementById("op-a-ver-list");
+const opEncaminhadoList  = document.getElementById("op-encaminhado-list");
+const opDoneList         = document.getElementById("op-done-list");
+const emptyOpAVer        = document.getElementById("empty-op-a-ver");
+const emptyOpEncaminhado = document.getElementById("empty-op-encaminhado");
+const emptyOpDone        = document.getElementById("empty-op-done");
+
+// Form toggle
+opiniaoFormToggle.addEventListener("click", () => toggleOpiniaoForm());
+
+function toggleOpiniaoForm(forceOpen) {
+  const open = forceOpen ?? opiniaoFormBody.hidden;
+  opiniaoFormBody.hidden = !open;
+  opiniaoFormToggle.setAttribute("aria-expanded", String(open));
+  opiniaoFormToggle.querySelector(".section__chevron").style.transform = open ? "rotate(180deg)" : "";
+}
+
+// Form submit
+opiniaoForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const nome      = document.getElementById("op-nome").value.trim();
+  const fap       = document.getElementById("op-fap").value.trim();
+  const remetente = document.getElementById("op-remetente").value.trim();
+  const resumo    = document.getElementById("op-resumo").value.trim();
+  const status    = document.querySelector('input[name="op-status"]:checked').value;
+
+  if (!nome || !fap || !remetente) {
+    showToast("Preencha nome, FAP e remetente.", "error");
+    return;
+  }
+
+  const payload = { nome, fap, remetente, resumo, status, updatedAt: serverTimestamp() };
+
+  try {
+    if (editingOpiniaoId) {
+      await updateDoc(doc(db, "opinioes", editingOpiniaoId), payload);
+      showToast("Caso atualizado.");
+      cancelOpiniaoEdit();
+    } else {
+      const group = allOpinioes.filter((c) => !c.discutido && c.status === status);
+      const maxOrder = group.reduce((m, c) => Math.max(m, c.sortOrder ?? 0), 0);
+      payload.createdAt  = serverTimestamp();
+      payload.discutido  = false;
+      payload.sortOrder  = maxOrder + 1000;
+      await addDoc(collection(db, "opinioes"), payload);
+      showToast("Caso de segunda opinião cadastrado.");
+    }
+    opiniaoForm.reset();
+    toggleOpiniaoForm(false);
+  } catch (err) {
+    showToast("Erro ao salvar: " + err.message, "error");
+  }
+});
+
+opCancelEditBtn.addEventListener("click", cancelOpiniaoEdit);
+
+function cancelOpiniaoEdit() {
+  editingOpiniaoId = null;
+  opiniaoFormTitle.textContent = "Novo Caso de Segunda Opinião";
+  opCancelEditBtn.hidden = true;
+  opiniaoForm.reset();
+  toggleOpiniaoForm(false);
+}
+
+// Firestore listener
+const qOp = query(collection(db, "opinioes"), orderBy("createdAt", "desc"));
+onSnapshot(qOp, (snapshot) => {
+  allOpinioes = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  renderOpinioes();
+});
+
+function renderOpinioes() {
+  const active   = allOpinioes.filter((c) => !c.discutido);
+  const done     = allOpinioes.filter((c) => c.discutido);
+  const sortedOp = (status) =>
+    active.filter((c) => c.status === status).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+  document.getElementById("badge-op-open").textContent = active.length;
+  document.getElementById("badge-op-done").textContent = done.length;
+
+  renderOpColumn(opAVerList,        emptyOpAVer,        sortedOp("a-ver"));
+  renderOpColumn(opEncaminhadoList, emptyOpEncaminhado, sortedOp("encaminhado"));
+  renderOpList(opDoneList, emptyOpDone, done);
+}
+
+function renderOpColumn(container, emptyEl, cases) {
+  container.innerHTML = "";
+  emptyEl.hidden = cases.length > 0;
+  cases.forEach((c) => container.appendChild(buildOpCard(c, false)));
+  initDrag(container);
+}
+
+function renderOpList(container, emptyEl, cases) {
+  container.innerHTML = "";
+  emptyEl.hidden = cases.length > 0;
+  cases.forEach((c) => container.appendChild(buildOpCard(c, true)));
+}
+
+function buildOpCard(c, isDone) {
+  const card = document.createElement("article");
+  card.className = "card card--opiniao" + (isDone ? " card--released" : "");
+  if (!isDone && c.status === "a-ver") card.classList.add("card--a-ser-visto");
+  card.setAttribute("draggable", isDone ? "false" : "true");
+  card.dataset.id = c.id;
+
+  const statusBadge = isDone
+    ? `<span class="badge badge--discutido">💬 Discutido</span>`
+    : c.status === "a-ver"
+    ? `<span class="badge badge--a-ser-visto">👁️ A ver</span>`
+    : `<span class="badge badge--encaminhado">✅ Encaminhado</span>`;
+
+  card.innerHTML = `
+    <header class="card__header">
+      <div class="card__drag-handle" aria-hidden="true" title="Arrastar para reordenar">⠿</div>
+      <div class="card__title-group">
+        <span class="card__fap">${escHtml(c.fap)}</span>
+        <h3 class="card__nome">${escHtml(c.nome)}</h3>
+      </div>
+      ${statusBadge}
+    </header>
+    <p class="card__remetente">📨 Enviado por <strong>${escHtml(c.remetente)}</strong></p>
+    ${c.resumo ? `<p class="card__resumo">${escHtml(c.resumo)}</p>` : ""}
+    <div class="card__notes">
+      <button class="card__notes-toggle" data-action="op-toggle-notes" data-id="${c.id}" aria-expanded="${c.notasPreceptor ? "true" : "false"}">
+        📋 Anotações do preceptor${c.notasPreceptor ? ' <span class="notes-dot"></span>' : ""}
+      </button>
+      <div class="card__notes-body" ${c.notasPreceptor ? "" : "hidden"}>
+        <textarea class="card__notes-textarea" placeholder="Anote aqui os comentários do preceptor..." data-id="${c.id}">${c.notasPreceptor ? escHtml(c.notasPreceptor) : ""}</textarea>
+        <div class="card__notes-actions">
+          <button class="btn btn--primary btn--sm" data-action="op-salvar-notas" data-id="${c.id}">Salvar anotações</button>
+        </div>
+      </div>
+    </div>
+    ${formatUpdatedAt(c.updatedAt || c.createdAt)}
+    <footer class="card__actions">
+      ${
+        !isDone
+          ? `<button class="btn btn--opiniao-action btn--sm" data-action="op-discutir" data-id="${c.id}">💬 Marcar como discutido</button>
+             <button class="btn btn--ghost btn--sm" data-action="op-editar" data-id="${c.id}">Editar</button>`
+          : ""
+      }
+      <button class="btn btn--ghost btn--sm btn--copy" data-action="copiar-fap" data-id="${c.id}" data-fap="${escHtml(c.fap)}" title="Copiar FAP">📋 ${escHtml(c.fap)}</button>
+      <button class="btn btn--danger btn--sm" data-action="op-excluir" data-id="${c.id}" data-nome="${escHtml(c.nome)}">Excluir</button>
+    </footer>`;
+
+  card.querySelectorAll("[data-action]").forEach((btn) => {
+    btn.addEventListener("click", handleOpCardAction);
+  });
+
+  return card;
+}
+
+async function handleOpCardAction(e) {
+  const { action, id, nome } = e.currentTarget.dataset;
+
+  if (action === "copiar-fap") {
+    const { fap } = e.currentTarget.dataset;
+    try {
+      await navigator.clipboard.writeText(fap);
+      const btn = e.currentTarget;
+      btn.textContent = "✅ Copiado!";
+      setTimeout(() => { btn.textContent = `📋 ${fap}`; }, 1500);
+    } catch {
+      showToast("Não foi possível copiar.", "error");
+    }
+  } else if (action === "op-toggle-notes") {
+    const card = e.currentTarget.closest(".card");
+    const body = card.querySelector(".card__notes-body");
+    const isHidden = body.hidden;
+    body.hidden = !isHidden;
+    e.currentTarget.setAttribute("aria-expanded", String(isHidden));
+    if (isHidden) card.querySelector(".card__notes-textarea").focus();
+  } else if (action === "op-salvar-notas") {
+    const textarea = e.currentTarget.closest(".card__notes-body").querySelector("textarea");
+    try {
+      await updateDoc(doc(db, "opinioes", id), { notasPreceptor: textarea.value.trim(), updatedAt: serverTimestamp() });
+      showToast("Anotações salvas.");
+    } catch (err) {
+      showToast("Erro ao salvar: " + err.message, "error");
+    }
+  } else if (action === "op-discutir") {
+    await updateDoc(doc(db, "opinioes", id), { discutido: true, updatedAt: serverTimestamp() });
+    showToast("Caso marcado como discutido.");
+  } else if (action === "op-editar") {
+    const c = allOpinioes.find((x) => x.id === id);
+    if (!c) return;
+    editingOpiniaoId = id;
+    opiniaoFormTitle.textContent = "Editar Caso de Segunda Opinião";
+    opCancelEditBtn.hidden = false;
+    document.getElementById("op-nome").value      = c.nome;
+    document.getElementById("op-fap").value       = c.fap;
+    document.getElementById("op-remetente").value = c.remetente || "";
+    document.getElementById("op-resumo").value    = c.resumo || "";
+    document.querySelector(`input[name="op-status"][value="${c.status}"]`).checked = true;
+    toggleOpiniaoForm(true);
+    document.getElementById("opiniao-form-section").scrollIntoView({ behavior: "smooth" });
+  } else if (action === "op-excluir") {
+    pendingDeleteId = "op:" + id;
+    deleteModalMsg.textContent = `Excluir o caso de "${nome}"? Esta ação não pode ser desfeita.`;
+    deleteModal.hidden = false;
+  }
+}
+
+// Override delete handler to support both collections
+confirmDeleteBtn.addEventListener("click", async () => {
+  if (!pendingDeleteId) return;
+  try {
+    if (pendingDeleteId.startsWith("op:")) {
+      await deleteDoc(doc(db, "opinioes", pendingDeleteId.slice(3)));
+    } else {
+      await deleteDoc(doc(db, "casos", pendingDeleteId));
+    }
+    showToast("Caso excluído.");
+  } catch (err) {
+    showToast("Erro ao excluir: " + err.message, "error");
+  }
+  pendingDeleteId = null;
+  deleteModal.hidden = true;
+}, { once: false });
+

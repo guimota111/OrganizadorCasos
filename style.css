@@ -253,12 +253,45 @@ body {
   color: #fff;
 }
 
+/* ── Section divider ────────────────────────────────────────────────────────── */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 36px;
+  color: var(--clr-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.section-divider::before,
+.section-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--clr-border);
+}
+
+/* segunda opinião — tint sutil para distinguir visualmente */
+.section--opiniao {
+  border-color: #c7d2fe;
+  background: #fafbff;
+}
+.section--opiniao .column {
+  background: #f5f7ff;
+  border-color: #c7d2fe;
+}
+
 /* ── Two-column layout ──────────────────────────────────────────────────────── */
 .columns {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   align-items: start;
+}
+.columns--two {
+  grid-template-columns: 1fr 1fr;
 }
 
 .column {
@@ -359,6 +392,15 @@ body {
 }
 
 /* ── Anotações do preceptor ─────────────────────────────────────────────────── */
+.card__remetente {
+  font-size: 12px;
+  color: var(--clr-text-muted);
+  margin-bottom: 6px;
+}
+
+.btn--opiniao-action { background: #ede9fe; color: #4c1d95; }
+.btn--opiniao-action:hover { background: #ddd6fe; }
+
 .card__updated {
   display: block;
   font-size: 11px;
@@ -430,6 +472,7 @@ body {
   white-space: nowrap;
   flex-shrink: 0;
 }
+.badge--discutido    { background: #ede9fe; color: #4c1d95; }
 .badge--a-ser-visto  { background: #dbeafe; color: #1e40af; }
 .badge--encaminhado  { background: #dcfce7; color: #166534; }
 .badge--terceirizado { background: #f3e8ff; color: #6b21a8; }

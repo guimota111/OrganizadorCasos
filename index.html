@@ -51,7 +51,7 @@
       </div>
     </div>
 
-    <!-- ── Formulário ── -->
+    <!-- ── Formulário — Casos próprios ── -->
     <section class="section" id="form-section" aria-labelledby="form-title">
       <button type="button" class="section__toggle" id="form-toggle" aria-expanded="false" aria-controls="form-body">
         <h2 class="section__title">📝 <span id="form-title">Novo Caso</span></h2>
@@ -114,7 +114,7 @@
       </div>
     </section>
 
-    <!-- ── Lista de casos ── -->
+    <!-- ── Lista de casos próprios ── -->
     <section class="section" aria-label="Lista de casos">
 
       <div class="tabs" role="tablist">
@@ -205,6 +205,132 @@
       </div>
 
     </section>
+
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- ── Segunda Opinião ── -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+
+    <div class="section-divider">
+      <span>Segunda Opinião</span>
+    </div>
+
+    <!-- Formulário — segunda opinião -->
+    <section class="section section--opiniao" id="opiniao-form-section">
+      <button type="button" class="section__toggle" id="opiniao-form-toggle" aria-expanded="false" aria-controls="opiniao-form-body">
+        <h2 class="section__title">🔍 <span id="opiniao-form-title">Novo Caso de Segunda Opinião</span></h2>
+        <span class="section__chevron" aria-hidden="true">▾</span>
+      </button>
+
+      <div id="opiniao-form-body" hidden>
+      <form id="opiniao-form" novalidate>
+        <div class="form-grid">
+
+          <div class="form-group">
+            <label for="op-nome">Nome do paciente *</label>
+            <input type="text" id="op-nome" placeholder="Ex.: Maria Souza" required />
+          </div>
+
+          <div class="form-group">
+            <label for="op-fap">FAP / código do caso *</label>
+            <input type="text" id="op-fap" placeholder="Ex.: FAP-2024-050" required />
+          </div>
+
+          <div class="form-group form-group--full">
+            <label for="op-remetente">Enviado por *</label>
+            <input type="text" id="op-remetente" placeholder="Ex.: Dr. Carlos (HU)" required />
+          </div>
+
+          <div class="form-group form-group--full">
+            <label for="op-resumo">Resumo clínico</label>
+            <textarea id="op-resumo" rows="3" placeholder="Breve descrição do caso..."></textarea>
+          </div>
+
+          <div class="form-group form-group--full">
+            <label>Status *</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="op-status" value="a-ver" checked />
+                👁️ A ver — recebido, ainda não analisado
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="op-status" value="encaminhado" />
+                ✅ Encaminhado — aguardando discussão com o preceptor
+              </label>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="form-actions" style="margin-top:20px;">
+          <button type="submit" class="btn btn--primary btn--opiniao">Salvar caso</button>
+          <button type="button" class="btn btn--ghost" id="op-cancel-edit" hidden>Cancelar edição</button>
+        </div>
+      </form>
+      </div>
+    </section>
+
+    <!-- Lista — segunda opinião -->
+    <section class="section section--opiniao" aria-label="Casos de segunda opinião">
+
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" role="tab" aria-selected="true" data-tab="tab-op-open">
+          Em andamento
+          <span class="tab-badge" id="badge-op-open">0</span>
+        </button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="tab-op-done">
+          Discutidos
+          <span class="tab-badge" id="badge-op-done">0</span>
+        </button>
+      </div>
+
+      <!-- Aba: em andamento — duas colunas -->
+      <div class="tab-panel active" id="tab-op-open" role="tabpanel">
+        <div class="columns columns--two">
+
+          <div class="column">
+            <div class="column__header column__header--a-ser-visto">
+              <span class="column__icon">👁️</span>
+              <div>
+                <h3 class="column__title">A ver</h3>
+                <p class="column__sub">Recebido, ainda não analisado</p>
+              </div>
+            </div>
+            <div class="card-list" id="op-a-ver-list"></div>
+            <div class="empty-state" id="empty-op-a-ver">
+              <div class="empty-state__icon">📬</div>
+              <p>Nenhum caso aguardando.</p>
+            </div>
+          </div>
+
+          <div class="column">
+            <div class="column__header column__header--encaminhado">
+              <span class="column__icon">✅</span>
+              <div>
+                <h3 class="column__title">Encaminhados ao preceptor</h3>
+                <p class="column__sub">Aguardando discussão</p>
+              </div>
+            </div>
+            <div class="card-list" id="op-encaminhado-list"></div>
+            <div class="empty-state" id="empty-op-encaminhado">
+              <div class="empty-state__icon">📭</div>
+              <p>Nenhum encaminhado.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Aba: discutidos -->
+      <div class="tab-panel" id="tab-op-done" role="tabpanel">
+        <div class="card-list" id="op-done-list"></div>
+        <div class="empty-state" id="empty-op-done">
+          <div class="empty-state__icon">📂</div>
+          <p>Nenhum caso discutido ainda.</p>
+        </div>
+      </div>
+
+    </section>
+
   </div><!-- /page-wrapper -->
 
   <!-- ── Toast ── -->
