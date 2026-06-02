@@ -222,6 +222,7 @@ function buildCard(c, isReleased) {
              <button class="btn btn--ghost btn--sm" data-action="editar" data-id="${c.id}">Editar</button>`
           : ""
       }
+      <button class="btn btn--ghost btn--sm btn--copy" data-action="copiar-fap" data-id="${c.id}" data-fap="${escHtml(c.fap)}" title="Copiar FAP">📋 ${escHtml(c.fap)}</button>
       <button class="btn btn--danger btn--sm" data-action="excluir" data-id="${c.id}" data-nome="${escHtml(c.nome)}">Excluir</button>
     </footer>`;
 
@@ -236,7 +237,17 @@ function buildCard(c, isReleased) {
 async function handleCardAction(e) {
   const { action, id, nome } = e.currentTarget.dataset;
 
-  if (action === "toggle-notes") {
+  if (action === "copiar-fap") {
+    const { fap } = e.currentTarget.dataset;
+    try {
+      await navigator.clipboard.writeText(fap);
+      const btn = e.currentTarget;
+      btn.textContent = "✅ Copiado!";
+      setTimeout(() => { btn.textContent = `📋 ${fap}`; }, 1500);
+    } catch {
+      showToast("Não foi possível copiar.", "error");
+    }
+  } else if (action === "toggle-notes") {
     const card = e.currentTarget.closest(".card");
     const body = card.querySelector(".card__notes-body");
     const isHidden = body.hidden;
