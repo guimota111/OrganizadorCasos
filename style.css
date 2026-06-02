@@ -228,6 +228,40 @@ body {
   color: #fff;
 }
 
+/* ── Two-column layout ──────────────────────────────────────────────────────── */
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.column {
+  background: var(--clr-bg);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.column__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid var(--clr-border);
+}
+.column__header--encaminhado { border-bottom-color: #86efac; }
+.column__header--pendencia   { border-bottom-color: #fde68a; }
+
+.column__icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+.column__title { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+.column__sub   { font-size: 12px; color: var(--clr-text-muted); }
+
+@media (max-width: 700px) {
+  .columns { grid-template-columns: 1fr; }
+}
+
 /* ── Case cards ─────────────────────────────────────────────────────────────── */
 .card-list { display: flex; flex-direction: column; gap: 12px; }
 
@@ -251,9 +285,9 @@ body {
 
 .card__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 8px;
 }
 .card__title-group { display: flex; flex-direction: column; gap: 2px; }
@@ -271,6 +305,28 @@ body {
   color: #92400e;
 }
 .card__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* drag handle + drag states */
+.card__drag-handle {
+  font-size: 16px;
+  color: var(--clr-border);
+  cursor: grab;
+  padding: 0 6px 0 0;
+  flex-shrink: 0;
+  user-select: none;
+  transition: color .15s;
+}
+.card:hover .card__drag-handle { color: var(--clr-text-muted); }
+.card__drag-handle:active { cursor: grabbing; }
+
+.card--dragging {
+  opacity: .4;
+  box-shadow: none;
+}
+.card--drag-over {
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 2px rgba(37,99,235,.25);
+}
 
 /* ── Anotações do preceptor ─────────────────────────────────────────────────── */
 .card__notes { margin: 10px 0 4px; }

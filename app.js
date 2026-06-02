@@ -9,6 +9,7 @@ import {
   query,
   orderBy,
   serverTimestamp,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -23,9 +24,11 @@ const statusRadios = document.querySelectorAll('input[name="status"]');
 const pendenciaGroup = document.getElementById("pendencia-group");
 const tabBtns = document.querySelectorAll(".tab-btn");
 const tabPanels = document.querySelectorAll(".tab-panel");
-const openList = document.getElementById("open-list");
+const encaminhadoList = document.getElementById("encaminhado-list");
+const pendenciaList = document.getElementById("pendencia-list");
 const releasedList = document.getElementById("released-list");
-const emptyOpen = document.getElementById("empty-open");
+const emptyEncaminhado = document.getElementById("empty-encaminhado");
+const emptyPendencia = document.getElementById("empty-pendencia");
 const emptyReleased = document.getElementById("empty-released");
 const cntTotal = document.getElementById("cnt-total");
 const cntPendencia = document.getElementById("cnt-pendencia");
@@ -83,8 +86,12 @@ form.addEventListener("submit", async (e) => {
       showToast("Caso atualizado.");
       cancelEdit();
     } else {
+      // New cases go to the bottom of their column
+      const group = allCases.filter((c) => !c.liberado && c.status === status);
+      const maxOrder = group.reduce((m, c) => Math.max(m, c.sortOrder ?? 0), 0);
       payload.createdAt = serverTimestamp();
       payload.liberado = false;
+      payload.sortOrder = maxOrder + 1000;
       await addDoc(collection(db, "casos"), payload);
       showToast("Caso cadastrado.");
     }
@@ -116,45 +123,56 @@ onSnapshot(q, (snapshot) => {
 function render() {
   const open = allCases.filter((c) => !c.liberado);
   const released = allCases.filter((c) => c.liberado);
+  const encaminhados = open
+    .filter((c) => c.status === "encaminhado")
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const pendencias = open
+    .filter((c) => c.status === "pendencia")
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
-  // counters
   cntTotal.textContent = allCases.length;
-  cntPendencia.textContent = open.filter((c) => c.status === "pendencia").length;
-  cntEncaminhado.textContent = open.filter((c) => c.status === "encaminhado").length;
+  cntPendencia.textContent = pendencias.length;
+  cntEncaminhado.textContent = encaminhados.length;
   cntLiberado.textContent = released.length;
 
-  // tab badge
   document.getElementById("badge-open").textContent = open.length;
   document.getElementById("badge-released").textContent = released.length;
 
-  renderList(openList, emptyOpen, open, false);
-  renderList(releasedList, emptyReleased, released, true);
+  renderColumn(encaminhadoList, emptyEncaminhado, encaminhados);
+  renderColumn(pendenciaList, emptyPendencia, pendencias);
+  renderList(releasedList, emptyReleased, released);
 }
 
-function renderList(container, emptyEl, cases, isReleased) {
+function renderColumn(container, emptyEl, cases) {
   container.innerHTML = "";
-  if (cases.length === 0) {
-    emptyEl.hidden = false;
-    return;
-  }
-  emptyEl.hidden = true;
-  cases.forEach((c) => container.appendChild(buildCard(c, isReleased)));
+  emptyEl.hidden = cases.length > 0;
+  cases.forEach((c) => container.appendChild(buildCard(c, false)));
+  initDrag(container);
 }
 
+function renderList(container, emptyEl, cases) {
+  container.innerHTML = "";
+  emptyEl.hidden = cases.length > 0;
+  cases.forEach((c) => container.appendChild(buildCard(c, true)));
+}
+
+// ─── Card builder ─────────────────────────────────────────────────────────────
 function buildCard(c, isReleased) {
   const card = document.createElement("article");
   card.className = "card" + (isReleased ? " card--released" : "");
   if (!isReleased && c.status === "pendencia") card.classList.add("card--pendencia");
+  card.setAttribute("draggable", isReleased ? "false" : "true");
+  card.dataset.id = c.id;
 
-  const statusBadge =
-    isReleased
-      ? `<span class="badge badge--liberado">Liberado</span>`
-      : c.status === "pendencia"
-      ? `<span class="badge badge--pendencia">⏳ Pendência</span>`
-      : `<span class="badge badge--encaminhado">✅ Encaminhado</span>`;
+  const statusBadge = isReleased
+    ? `<span class="badge badge--liberado">Liberado</span>`
+    : c.status === "pendencia"
+    ? `<span class="badge badge--pendencia">⏳ Pendência</span>`
+    : `<span class="badge badge--encaminhado">✅ Encaminhado</span>`;
 
   card.innerHTML = `
     <header class="card__header">
+      <div class="card__drag-handle" aria-hidden="true" title="Arrastar para reordenar">⠿</div>
       <div class="card__title-group">
         <span class="card__fap">${escHtml(c.fap)}</span>
         <h3 class="card__nome">${escHtml(c.nome)}</h3>
@@ -163,16 +181,16 @@ function buildCard(c, isReleased) {
     </header>
     ${c.resumo ? `<p class="card__resumo">${escHtml(c.resumo)}</p>` : ""}
     ${
-      !isReleased && c.status === "pendencia" && c.pendenciaDesc
+      c.status === "pendencia" && c.pendenciaDesc && !isReleased
         ? `<div class="card__pendencia-desc"><strong>Pendência:</strong> ${escHtml(c.pendenciaDesc)}</div>`
         : ""
     }
     <div class="card__notes">
-      <button class="card__notes-toggle" data-action="toggle-notes" data-id="${c.id}" aria-expanded="${c.notasPreceptor ? 'true' : 'false'}">
-        📋 Anotações do preceptor${c.notasPreceptor ? ' <span class="notes-dot"></span>' : ''}
+      <button class="card__notes-toggle" data-action="toggle-notes" data-id="${c.id}" aria-expanded="${c.notasPreceptor ? "true" : "false"}">
+        📋 Anotações do preceptor${c.notasPreceptor ? ' <span class="notes-dot"></span>' : ""}
       </button>
-      <div class="card__notes-body" ${c.notasPreceptor ? '' : 'hidden'}>
-        <textarea class="card__notes-textarea" placeholder="Anote aqui os comentários do preceptor..." data-id="${c.id}">${c.notasPreceptor ? escHtml(c.notasPreceptor) : ''}</textarea>
+      <div class="card__notes-body" ${c.notasPreceptor ? "" : "hidden"}>
+        <textarea class="card__notes-textarea" placeholder="Anote aqui os comentários do preceptor..." data-id="${c.id}">${c.notasPreceptor ? escHtml(c.notasPreceptor) : ""}</textarea>
         <div class="card__notes-actions">
           <button class="btn btn--primary btn--sm" data-action="salvar-notas" data-id="${c.id}">Salvar anotações</button>
         </div>
@@ -195,6 +213,7 @@ function buildCard(c, isReleased) {
   return card;
 }
 
+// ─── Card actions ─────────────────────────────────────────────────────────────
 async function handleCardAction(e) {
   const { action, id, nome } = e.currentTarget.dataset;
 
@@ -234,6 +253,70 @@ async function handleCardAction(e) {
     deleteModalMsg.textContent = `Excluir o caso de "${nome}"? Esta ação não pode ser desfeita.`;
     deleteModal.hidden = false;
   }
+}
+
+// ─── Drag-and-drop reordering ─────────────────────────────────────────────────
+let dragSrcId = null;
+
+function initDrag(container) {
+  container.querySelectorAll(".card[draggable='true']").forEach((card) => {
+    card.addEventListener("dragstart", onDragStart);
+    card.addEventListener("dragover", onDragOver);
+    card.addEventListener("dragleave", onDragLeave);
+    card.addEventListener("drop", onDrop);
+    card.addEventListener("dragend", onDragEnd);
+  });
+}
+
+function onDragStart(e) {
+  dragSrcId = this.dataset.id;
+  this.classList.add("card--dragging");
+  e.dataTransfer.effectAllowed = "move";
+  // Prevents Firefox from treating the card as a link drag
+  e.dataTransfer.setData("text/plain", dragSrcId);
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  if (this.dataset.id !== dragSrcId) this.classList.add("card--drag-over");
+}
+
+function onDragLeave() {
+  this.classList.remove("card--drag-over");
+}
+
+async function onDrop(e) {
+  e.preventDefault();
+  this.classList.remove("card--drag-over");
+  const targetId = this.dataset.id;
+  if (!dragSrcId || dragSrcId === targetId) return;
+
+  // Collect ordered IDs from the DOM column, then swap src into target's position
+  const container = this.closest(".card-list");
+  const ids = [...container.querySelectorAll(".card[draggable='true']")].map(
+    (c) => c.dataset.id
+  );
+  const srcIdx = ids.indexOf(dragSrcId);
+  const tgtIdx = ids.indexOf(targetId);
+  if (srcIdx === -1 || tgtIdx === -1) return;
+
+  ids.splice(srcIdx, 1);
+  ids.splice(tgtIdx, 0, dragSrcId);
+
+  // Persist new order — space by 1000 so future inserts don't collide
+  const batch = writeBatch(db);
+  ids.forEach((id, i) => {
+    batch.update(doc(db, "casos", id), { sortOrder: (i + 1) * 1000 });
+  });
+  await batch.commit();
+}
+
+function onDragEnd() {
+  document.querySelectorAll(".card--dragging, .card--drag-over").forEach((el) => {
+    el.classList.remove("card--dragging", "card--drag-over");
+  });
+  dragSrcId = null;
 }
 
 // ─── Delete modal ─────────────────────────────────────────────────────────────
