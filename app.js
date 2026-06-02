@@ -167,6 +167,17 @@ function buildCard(c, isReleased) {
         ? `<div class="card__pendencia-desc"><strong>Pendência:</strong> ${escHtml(c.pendenciaDesc)}</div>`
         : ""
     }
+    <div class="card__notes">
+      <button class="card__notes-toggle" data-action="toggle-notes" data-id="${c.id}" aria-expanded="${c.notasPreceptor ? 'true' : 'false'}">
+        📋 Anotações do preceptor${c.notasPreceptor ? ' <span class="notes-dot"></span>' : ''}
+      </button>
+      <div class="card__notes-body" ${c.notasPreceptor ? '' : 'hidden'}>
+        <textarea class="card__notes-textarea" placeholder="Anote aqui os comentários do preceptor..." data-id="${c.id}">${c.notasPreceptor ? escHtml(c.notasPreceptor) : ''}</textarea>
+        <div class="card__notes-actions">
+          <button class="btn btn--primary btn--sm" data-action="salvar-notas" data-id="${c.id}">Salvar anotações</button>
+        </div>
+      </div>
+    </div>
     <footer class="card__actions">
       ${
         !isReleased
@@ -187,7 +198,22 @@ function buildCard(c, isReleased) {
 async function handleCardAction(e) {
   const { action, id, nome } = e.currentTarget.dataset;
 
-  if (action === "liberar") {
+  if (action === "toggle-notes") {
+    const card = e.currentTarget.closest(".card");
+    const body = card.querySelector(".card__notes-body");
+    const isHidden = body.hidden;
+    body.hidden = !isHidden;
+    e.currentTarget.setAttribute("aria-expanded", String(isHidden));
+    if (isHidden) card.querySelector(".card__notes-textarea").focus();
+  } else if (action === "salvar-notas") {
+    const textarea = e.currentTarget.closest(".card__notes-body").querySelector("textarea");
+    try {
+      await updateDoc(doc(db, "casos", id), { notasPreceptor: textarea.value.trim() });
+      showToast("Anotações salvas.");
+    } catch (err) {
+      showToast("Erro ao salvar: " + err.message, "error");
+    }
+  } else if (action === "liberar") {
     await updateDoc(doc(db, "casos", id), { liberado: true });
     showToast("Caso liberado.");
   } else if (action === "editar") {

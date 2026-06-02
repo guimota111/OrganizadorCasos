@@ -273,6 +273,58 @@ body {
 }
 .card__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* ── Anotações do preceptor ─────────────────────────────────────────────────── */
+.card__notes { margin: 10px 0 4px; }
+
+.card__notes-toggle {
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color .15s;
+}
+.card__notes-toggle:hover { color: var(--clr-primary); }
+.card__notes-toggle[aria-expanded="true"] { color: var(--clr-primary); }
+
+.notes-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--clr-primary);
+  flex-shrink: 0;
+}
+
+.card__notes-body { margin-top: 8px; }
+
+.card__notes-textarea {
+  width: 100%;
+  min-height: 90px;
+  border: 1px solid var(--clr-border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--clr-text);
+  background: #f8faff;
+  resize: vertical;
+  transition: border-color .15s;
+}
+.card__notes-textarea:focus {
+  outline: none;
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.10);
+}
+
+.card__notes-actions { margin-top: 8px; display: flex; justify-content: flex-end; }
+
 /* ── Badges ─────────────────────────────────────────────────────────────────── */
 .badge {
   display: inline-flex;
