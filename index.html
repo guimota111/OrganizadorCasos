@@ -29,13 +29,21 @@
         <div class="stat-card__value" id="cnt-total">—</div>
         <div class="stat-card__label">Total</div>
       </div>
-      <div class="stat-card stat-card--pendencia">
-        <div class="stat-card__value" id="cnt-pendencia">—</div>
-        <div class="stat-card__label">Com pendência</div>
+      <div class="stat-card stat-card--a-ser-visto">
+        <div class="stat-card__value" id="cnt-a-ser-visto">—</div>
+        <div class="stat-card__label">A ser visto</div>
       </div>
       <div class="stat-card stat-card--encaminhado">
         <div class="stat-card__value" id="cnt-encaminhado">—</div>
         <div class="stat-card__label">Encaminhados</div>
+      </div>
+      <div class="stat-card stat-card--terceirizado">
+        <div class="stat-card__value" id="cnt-terceirizado">—</div>
+        <div class="stat-card__label">Terceirizados</div>
+      </div>
+      <div class="stat-card stat-card--pendencia">
+        <div class="stat-card__value" id="cnt-pendencia">—</div>
+        <div class="stat-card__label">Com pendência</div>
       </div>
       <div class="stat-card stat-card--liberado">
         <div class="stat-card__value" id="cnt-liberado">—</div>
@@ -69,8 +77,16 @@
             <label>Status do caso *</label>
             <div class="radio-group">
               <label class="radio-label">
-                <input type="radio" name="status" value="encaminhado" checked />
-                ✅ Caso encaminhado — sem pendência
+                <input type="radio" name="status" value="a-ser-visto" checked />
+                👁️ A ser visto — cadastrado, ainda não analisado
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="status" value="encaminhado" />
+                ✅ Encaminhado — aguardando discussão com o preceptor
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="status" value="terceirizado" />
+                🔀 Terceirizado — está no monitor, com outro profissional
               </label>
               <label class="radio-label">
                 <input type="radio" name="status" value="pendencia" />
@@ -98,7 +114,7 @@
 
       <div class="tabs" role="tablist">
         <button class="tab-btn active" role="tab" aria-selected="true" data-tab="tab-open">
-          Em aberto / Pendências
+          Em aberto
           <span class="tab-badge" id="badge-open">0</span>
         </button>
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="tab-released">
@@ -107,9 +123,24 @@
         </button>
       </div>
 
-      <!-- Aba: em aberto — duas colunas -->
+      <!-- Aba: em aberto — quatro colunas -->
       <div class="tab-panel active" id="tab-open" role="tabpanel">
         <div class="columns">
+
+          <div class="column">
+            <div class="column__header column__header--a-ser-visto">
+              <span class="column__icon">👁️</span>
+              <div>
+                <h3 class="column__title">A ser visto</h3>
+                <p class="column__sub">Cadastrado, ainda não analisado</p>
+              </div>
+            </div>
+            <div class="card-list" id="a-ser-visto-list"></div>
+            <div class="empty-state" id="empty-a-ser-visto">
+              <div class="empty-state__icon">📋</div>
+              <p>Nenhum caso aguardando.</p>
+            </div>
+          </div>
 
           <div class="column">
             <div class="column__header column__header--encaminhado">
@@ -123,6 +154,21 @@
             <div class="empty-state" id="empty-encaminhado">
               <div class="empty-state__icon">📭</div>
               <p>Nenhum caso encaminhado.</p>
+            </div>
+          </div>
+
+          <div class="column">
+            <div class="column__header column__header--terceirizado">
+              <span class="column__icon">🔀</span>
+              <div>
+                <h3 class="column__title">Terceirizados</h3>
+                <p class="column__sub">No monitor, com outro profissional</p>
+              </div>
+            </div>
+            <div class="card-list" id="terceirizado-list"></div>
+            <div class="empty-state" id="empty-terceirizado">
+              <div class="empty-state__icon">📤</div>
+              <p>Nenhum caso terceirizado.</p>
             </div>
           </div>
 

@@ -24,15 +24,21 @@ const statusRadios = document.querySelectorAll('input[name="status"]');
 const pendenciaGroup = document.getElementById("pendencia-group");
 const tabBtns = document.querySelectorAll(".tab-btn");
 const tabPanels = document.querySelectorAll(".tab-panel");
+const aSerVistoList = document.getElementById("a-ser-visto-list");
 const encaminhadoList = document.getElementById("encaminhado-list");
+const terceirizadoList = document.getElementById("terceirizado-list");
 const pendenciaList = document.getElementById("pendencia-list");
 const releasedList = document.getElementById("released-list");
+const emptyASerVisto = document.getElementById("empty-a-ser-visto");
 const emptyEncaminhado = document.getElementById("empty-encaminhado");
+const emptyTerceirizado = document.getElementById("empty-terceirizado");
 const emptyPendencia = document.getElementById("empty-pendencia");
 const emptyReleased = document.getElementById("empty-released");
 const cntTotal = document.getElementById("cnt-total");
+const cntASerVisto = document.getElementById("cnt-a-ser-visto");
 const cntPendencia = document.getElementById("cnt-pendencia");
 const cntEncaminhado = document.getElementById("cnt-encaminhado");
+const cntTerceirizado = document.getElementById("cnt-terceirizado");
 const cntLiberado = document.getElementById("cnt-liberado");
 const toast = document.getElementById("toast");
 const deleteModal = document.getElementById("delete-modal");
@@ -123,23 +129,30 @@ onSnapshot(q, (snapshot) => {
 function render() {
   const open = allCases.filter((c) => !c.liberado);
   const released = allCases.filter((c) => c.liberado);
-  const encaminhados = open
-    .filter((c) => c.status === "encaminhado")
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-  const pendencias = open
-    .filter((c) => c.status === "pendencia")
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const sorted = (status) =>
+    open
+      .filter((c) => c.status === status)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
-  cntTotal.textContent = allCases.length;
-  cntPendencia.textContent = pendencias.length;
-  cntEncaminhado.textContent = encaminhados.length;
-  cntLiberado.textContent = released.length;
+  const aSerVistos    = sorted("a-ser-visto");
+  const encaminhados  = sorted("encaminhado");
+  const terceirizados = sorted("terceirizado");
+  const pendencias    = sorted("pendencia");
 
-  document.getElementById("badge-open").textContent = open.length;
+  cntTotal.textContent        = allCases.length;
+  cntASerVisto.textContent    = aSerVistos.length;
+  cntEncaminhado.textContent  = encaminhados.length;
+  cntTerceirizado.textContent = terceirizados.length;
+  cntPendencia.textContent    = pendencias.length;
+  cntLiberado.textContent     = released.length;
+
+  document.getElementById("badge-open").textContent     = open.length;
   document.getElementById("badge-released").textContent = released.length;
 
-  renderColumn(encaminhadoList, emptyEncaminhado, encaminhados);
-  renderColumn(pendenciaList, emptyPendencia, pendencias);
+  renderColumn(aSerVistoList,    emptyASerVisto,    aSerVistos);
+  renderColumn(encaminhadoList,  emptyEncaminhado,  encaminhados);
+  renderColumn(terceirizadoList, emptyTerceirizado, terceirizados);
+  renderColumn(pendenciaList,    emptyPendencia,    pendencias);
   renderList(releasedList, emptyReleased, released);
 }
 
@@ -160,15 +173,21 @@ function renderList(container, emptyEl, cases) {
 function buildCard(c, isReleased) {
   const card = document.createElement("article");
   card.className = "card" + (isReleased ? " card--released" : "");
-  if (!isReleased && c.status === "pendencia") card.classList.add("card--pendencia");
+  if (!isReleased && c.status === "pendencia")    card.classList.add("card--pendencia");
+  if (!isReleased && c.status === "a-ser-visto")  card.classList.add("card--a-ser-visto");
+  if (!isReleased && c.status === "terceirizado") card.classList.add("card--terceirizado");
   card.setAttribute("draggable", isReleased ? "false" : "true");
   card.dataset.id = c.id;
 
   const statusBadge = isReleased
     ? `<span class="badge badge--liberado">Liberado</span>`
-    : c.status === "pendencia"
-    ? `<span class="badge badge--pendencia">⏳ Pendência</span>`
-    : `<span class="badge badge--encaminhado">✅ Encaminhado</span>`;
+    : c.status === "a-ser-visto"
+    ? `<span class="badge badge--a-ser-visto">👁️ A ser visto</span>`
+    : c.status === "encaminhado"
+    ? `<span class="badge badge--encaminhado">✅ Encaminhado</span>`
+    : c.status === "terceirizado"
+    ? `<span class="badge badge--terceirizado">🔀 Terceirizado</span>`
+    : `<span class="badge badge--pendencia">⏳ Pendência</span>`;
 
   card.innerHTML = `
     <header class="card__header">
