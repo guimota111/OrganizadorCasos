@@ -72,7 +72,7 @@ function renderOpinioes() {
 // ─── Build row ────────────────────────────────────────────────────────────────
 function buildRow(c, collection) {
   const row = document.createElement("div");
-  row.className = `list-row list-row--${c.status}`;
+  row.className = `list-row list-row--${c.status}${c.checked ? " list-row--checked" : ""}`;
   row.setAttribute("draggable", "true");
   row.dataset.id  = c.id;
   row.dataset.col = collection;
@@ -87,6 +87,7 @@ function buildRow(c, collection) {
 
   row.innerHTML = `
     <div class="list-row__handle" title="Arrastar para reordenar">⠿</div>
+    <button class="list-row__check" data-action="toggle-check" title="Marcar como checado">✓</button>
     <div class="list-row__fap">${escHtml(c.fap)}</div>
     <div class="list-row__main">
       <div class="list-row__nome">${escHtml(c.nome)}</div>
@@ -151,6 +152,9 @@ async function handleRowAction(e, c, col, row) {
     const orig = btn.textContent;
     btn.textContent = "✅ Copiado!";
     setTimeout(() => { btn.textContent = orig; }, 1500);
+  } else if (action === "toggle-check") {
+    const next = !c.checked;
+    await updateDoc(doc(db, col, c.id), { checked: next });
   } else if (action === "liberar") {
     await updateDoc(doc(db, "casos", c.id), { liberado: true, updatedAt: serverTimestamp() });
   } else if (action === "op-discutir") {

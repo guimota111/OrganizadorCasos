@@ -73,7 +73,7 @@
 /* ── List rows ───────────────────────────────────────────────────────────────── */
 .list-row {
   display: grid;
-  grid-template-columns: 32px 110px 1fr auto 20px;
+  grid-template-columns: 32px 32px 110px 1fr auto 20px;
   align-items: center;
   gap: 12px;
   padding: 11px 16px;
@@ -87,6 +87,27 @@
 .list-row:hover { background: #f8faff; }
 .list-row--expanded { background: #f0f5ff; }
 .list-row--expanded:hover { background: #e8efff; }
+
+.list-row__check {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--clr-border);
+  background: none;
+  font-size: 13px;
+  color: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.list-row__check:hover { border-color: #86efac; color: #86efac; }
+.list-row--checked .list-row__check { background: #16a34a; border-color: #16a34a; color: #fff; }
+.list-row--checked { background: #f0fdf4 !important; }
+.list-row--checked:hover { background: #dcfce7 !important; }
+.list-row--checked .list-row__nome { color: var(--clr-text-muted); }
 
 .list-row__handle {
   font-size: 16px;
@@ -229,6 +250,6 @@
 
 /* ── Responsive ──────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .list-row { grid-template-columns: 28px 1fr auto 20px; }
+  .list-row { grid-template-columns: 28px 28px 1fr auto 20px; }
   .list-row__fap { display: none; }
 }
