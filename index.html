@@ -53,8 +53,12 @@
 
     <!-- ── Formulário ── -->
     <section class="section" id="form-section" aria-labelledby="form-title">
-      <h2 class="section__title">📝 <span id="form-title">Novo Caso</span></h2>
+      <button type="button" class="section__toggle" id="form-toggle" aria-expanded="false" aria-controls="form-body">
+        <h2 class="section__title">📝 <span id="form-title">Novo Caso</span></h2>
+        <span class="section__chevron" aria-hidden="true">▾</span>
+      </button>
 
+      <div id="form-body" hidden>
       <form id="case-form" novalidate>
         <div class="form-grid">
 
@@ -107,6 +111,7 @@
           <button type="button" class="btn btn--ghost" id="cancel-edit" hidden>Cancelar edição</button>
         </div>
       </form>
+      </div>
     </section>
 
     <!-- ── Lista de casos ── -->

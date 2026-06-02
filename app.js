@@ -40,12 +40,24 @@ const cntPendencia = document.getElementById("cnt-pendencia");
 const cntEncaminhado = document.getElementById("cnt-encaminhado");
 const cntTerceirizado = document.getElementById("cnt-terceirizado");
 const cntLiberado = document.getElementById("cnt-liberado");
+const formToggle = document.getElementById("form-toggle");
+const formBody = document.getElementById("form-body");
 const toast = document.getElementById("toast");
 const deleteModal = document.getElementById("delete-modal");
 const deleteModalMsg = document.getElementById("delete-modal-msg");
 const confirmDeleteBtn = document.getElementById("confirm-delete");
 const cancelDeleteBtn = document.getElementById("cancel-delete");
 let pendingDeleteId = null;
+
+// ─── Form toggle ─────────────────────────────────────────────────────────────
+formToggle.addEventListener("click", () => toggleForm());
+
+function toggleForm(forceOpen) {
+  const open = forceOpen ?? formBody.hidden;
+  formBody.hidden = !open;
+  formToggle.setAttribute("aria-expanded", String(open));
+  formToggle.querySelector(".section__chevron").style.transform = open ? "rotate(180deg)" : "";
+}
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 tabBtns.forEach((btn) => {
@@ -103,6 +115,7 @@ form.addEventListener("submit", async (e) => {
     }
     form.reset();
     pendenciaGroup.hidden = true;
+    toggleForm(false);
   } catch (err) {
     showToast("Erro ao salvar: " + err.message, "error");
   }
@@ -116,6 +129,7 @@ function cancelEdit() {
   cancelEditBtn.hidden = true;
   form.reset();
   pendenciaGroup.hidden = true;
+  toggleForm(false);
 }
 
 // ─── Firestore listener ───────────────────────────────────────────────────────
@@ -277,6 +291,7 @@ async function handleCardAction(e) {
     document.querySelector(`input[name="status"][value="${c.status}"]`).checked = true;
     pendenciaGroup.hidden = c.status !== "pendencia";
     document.getElementById("pendencia-desc").value = c.pendenciaDesc || "";
+    toggleForm(true);
     document.getElementById("form-section").scrollIntoView({ behavior: "smooth" });
   } else if (action === "excluir") {
     pendingDeleteId = id;
