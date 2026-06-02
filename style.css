@@ -33,6 +33,22 @@ body {
 /* ── Layout ─────────────────────────────────────────────────────────────────── */
 .page-wrapper { max-width: 100%; padding: 0 24px 64px; }
 
+/* ── Nav ─────────────────────────────────────────────────────────────────────── */
+.site-nav { margin-left: auto; }
+.nav-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clr-primary);
+  text-decoration: none;
+  padding: 6px 12px;
+  border: 1px solid var(--clr-border);
+  border-radius: 6px;
+  background: var(--clr-surface);
+  transition: background .15s;
+  white-space: nowrap;
+}
+.nav-link:hover { background: var(--clr-bg); }
+
 /* ── Header ─────────────────────────────────────────────────────────────────── */
 .site-header {
   background: var(--clr-surface);
