@@ -103,8 +103,17 @@ function buildRow(c, collection) {
       <div class="list-row__detail-actions">
         <button class="btn btn--primary btn--sm" data-action="save-notes">Salvar anotações</button>
         <button class="btn btn--ghost btn--sm" data-action="copy-fap" data-fap="${escHtml(c.fap)}">📋 Copiar FAP</button>
+        ${collection === "casos"
+          ? `<button class="btn btn--success btn--sm" data-action="liberar">Liberar caso</button>
+             <button class="btn btn--warning btn--sm" data-action="add-pendencia">⏳ Adicionar pendência</button>`
+          : `<button class="btn btn--opiniao-action btn--sm" data-action="op-discutir">💬 Marcar como discutido</button>`
+        }
       </div>
-    </div>`;
+      <div class="list-row__pendencia-input" hidden>
+        <input type="text" class="pendencia-text" placeholder="Descreva a pendência…" />
+        <button class="btn btn--warning btn--sm" data-action="save-pendencia">Salvar pendência</button>
+        <button class="btn btn--ghost btn--sm" data-action="cancel-pendencia">Cancelar</button>
+      </div>`;
 
   // click anywhere on the summary row (not inside the detail) toggles expand
   row.addEventListener("click", (e) => {
@@ -142,6 +151,24 @@ async function handleRowAction(e, c, col, row) {
     const orig = btn.textContent;
     btn.textContent = "✅ Copiado!";
     setTimeout(() => { btn.textContent = orig; }, 1500);
+  } else if (action === "liberar") {
+    await updateDoc(doc(db, "casos", c.id), { liberado: true, updatedAt: serverTimestamp() });
+  } else if (action === "op-discutir") {
+    await updateDoc(doc(db, "opinioes", c.id), { discutido: true, updatedAt: serverTimestamp() });
+  } else if (action === "add-pendencia") {
+    const box = row.querySelector(".list-row__pendencia-input");
+    box.hidden = false;
+    box.querySelector(".pendencia-text").focus();
+  } else if (action === "cancel-pendencia") {
+    const box = row.querySelector(".list-row__pendencia-input");
+    box.hidden = true;
+    box.querySelector(".pendencia-text").value = "";
+  } else if (action === "save-pendencia") {
+    const box  = row.querySelector(".list-row__pendencia-input");
+    const desc = box.querySelector(".pendencia-text").value.trim();
+    await updateDoc(doc(db, "casos", c.id), {
+      status: "pendencia", pendenciaDesc: desc, updatedAt: serverTimestamp(),
+    });
   }
 }
 
