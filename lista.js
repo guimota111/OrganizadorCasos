@@ -22,34 +22,17 @@ const opiniaoListEl = document.getElementById("opiniao-list");
 const emptyOpiniao  = document.getElementById("empty-opiniao-list");
 
 // ─── Firestore listeners ──────────────────────────────────────────────────────
-onSnapshot(
-  query(collection(db, "casos"), orderBy("listOrder", "asc")),
-  (snap) => {
-    allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderCases();
-  },
-  // fallback: listOrder may not exist yet on older docs — sort by createdAt
-  () => {
-    onSnapshot(query(collection(db, "casos"), orderBy("createdAt", "desc")), (snap) => {
-      allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      renderCases();
-    });
-  }
-);
+// Order by createdAt (field all docs have). listOrder is applied client-side
+// so docs without it still appear, sorted to the end.
+onSnapshot(query(collection(db, "casos"), orderBy("createdAt", "desc")), (snap) => {
+  allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  renderCases();
+});
 
-onSnapshot(
-  query(collection(db, "opinioes"), orderBy("listOrder", "asc")),
-  (snap) => {
-    allOpinioes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderOpinioes();
-  },
-  () => {
-    onSnapshot(query(collection(db, "opinioes"), orderBy("createdAt", "desc")), (snap) => {
-      allOpinioes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      renderOpinioes();
-    });
-  }
-);
+onSnapshot(query(collection(db, "opinioes"), orderBy("createdAt", "desc")), (snap) => {
+  allOpinioes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  renderOpinioes();
+});
 
 // ─── Render cases ─────────────────────────────────────────────────────────────
 function renderCases() {
