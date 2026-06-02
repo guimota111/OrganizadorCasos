@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organizador de Casos — Patologia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <header class="site-header">
+    <div class="site-header__inner">
+      <span class="site-header__icon">🔬</span>
+      <div>
+        <h1>Organizador de Casos</h1>
+        <p class="site-header__sub">Patologia — controle de pré-laudos</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="page-wrapper">
+
+    <!-- ── Contadores ── -->
+    <div class="stats-bar" role="region" aria-label="Resumo de casos">
+      <div class="stat-card">
+        <div class="stat-card__value" id="cnt-total">—</div>
+        <div class="stat-card__label">Total</div>
+      </div>
+      <div class="stat-card stat-card--pendencia">
+        <div class="stat-card__value" id="cnt-pendencia">—</div>
+        <div class="stat-card__label">Com pendência</div>
+      </div>
+      <div class="stat-card stat-card--encaminhado">
+        <div class="stat-card__value" id="cnt-encaminhado">—</div>
+        <div class="stat-card__label">Encaminhados</div>
+      </div>
+      <div class="stat-card stat-card--liberado">
+        <div class="stat-card__value" id="cnt-liberado">—</div>
+        <div class="stat-card__label">Liberados</div>
+      </div>
+    </div>
+
+    <!-- ── Formulário ── -->
+    <section class="section" id="form-section" aria-labelledby="form-title">
+      <h2 class="section__title">📝 <span id="form-title">Novo Caso</span></h2>
+
+      <form id="case-form" novalidate>
+        <div class="form-grid">
+
+          <div class="form-group">
+            <label for="nome">Nome do paciente *</label>
+            <input type="text" id="nome" placeholder="Ex.: João da Silva" required />
+          </div>
+
+          <div class="form-group">
+            <label for="fap">FAP — código do caso *</label>
+            <input type="text" id="fap" placeholder="Ex.: FAP-2024-001" required />
+          </div>
+
+          <div class="form-group form-group--full">
+            <label for="resumo">Resumo clínico</label>
+            <textarea id="resumo" rows="3" placeholder="Breve descrição do caso para referência..."></textarea>
+          </div>
+
+          <div class="form-group form-group--full">
+            <label>Status do caso *</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="status" value="encaminhado" checked />
+                ✅ Caso encaminhado — sem pendência
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="status" value="pendencia" />
+                ⏳ Pendência — descrever abaixo
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group form-group--full" id="pendencia-group" hidden>
+            <label for="pendencia-desc">Descrição da pendência</label>
+            <input type="text" id="pendencia-desc" placeholder="Descreva o que está pendente..." />
+          </div>
+
+        </div><!-- /form-grid -->
+
+        <div class="form-actions" style="margin-top:20px;">
+          <button type="submit" class="btn btn--primary">Salvar caso</button>
+          <button type="button" class="btn btn--ghost" id="cancel-edit" hidden>Cancelar edição</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ── Lista de casos ── -->
+    <section class="section" aria-label="Lista de casos">
+
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" role="tab" aria-selected="true" data-tab="tab-open">
+          Em aberto / Pendências
+          <span class="tab-badge" id="badge-open">0</span>
+        </button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="tab-released">
+          Casos liberados
+          <span class="tab-badge" id="badge-released">0</span>
+        </button>
+      </div>
+
+      <!-- Aba: em aberto -->
+      <div class="tab-panel active" id="tab-open" role="tabpanel">
+        <div class="card-list" id="open-list"></div>
+        <div class="empty-state" id="empty-open">
+          <div class="empty-state__icon">🎉</div>
+          <p>Nenhum caso em aberto.</p>
+        </div>
+      </div>
+
+      <!-- Aba: liberados -->
+      <div class="tab-panel" id="tab-released" role="tabpanel">
+        <div class="card-list" id="released-list"></div>
+        <div class="empty-state" id="empty-released">
+          <div class="empty-state__icon">📂</div>
+          <p>Nenhum caso liberado ainda.</p>
+        </div>
+      </div>
+
+    </section>
+  </div><!-- /page-wrapper -->
+
+  <!-- ── Toast ── -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- ── Modal de confirmação de exclusão ── -->
+  <div class="modal-overlay" id="delete-modal" hidden role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+    <div class="modal">
+      <h2 id="delete-modal-title">Confirmar exclusão</h2>
+      <p id="delete-modal-msg"></p>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" id="cancel-delete">Cancelar</button>
+        <button class="btn btn--danger" id="confirm-delete">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
