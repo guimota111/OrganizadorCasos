@@ -359,6 +359,14 @@ body {
 }
 
 /* ── Anotações do preceptor ─────────────────────────────────────────────────── */
+.card__updated {
+  display: block;
+  font-size: 11px;
+  color: var(--clr-text-muted);
+  margin-bottom: 8px;
+  opacity: .7;
+}
+
 .card__notes { margin: 10px 0 4px; }
 
 .card__notes-toggle {

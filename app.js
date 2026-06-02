@@ -96,7 +96,7 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  const payload = { nome, fap, resumo, status, pendenciaDesc };
+  const payload = { nome, fap, resumo, status, pendenciaDesc, updatedAt: serverTimestamp() };
 
   try {
     if (editingId) {
@@ -229,6 +229,7 @@ function buildCard(c, isReleased) {
         </div>
       </div>
     </div>
+    ${formatUpdatedAt(c.updatedAt || c.createdAt)}
     <footer class="card__actions">
       ${
         !isReleased
@@ -271,7 +272,7 @@ async function handleCardAction(e) {
   } else if (action === "salvar-notas") {
     const textarea = e.currentTarget.closest(".card__notes-body").querySelector("textarea");
     try {
-      await updateDoc(doc(db, "casos", id), { notasPreceptor: textarea.value.trim() });
+      await updateDoc(doc(db, "casos", id), { notasPreceptor: textarea.value.trim(), updatedAt: serverTimestamp() });
       showToast("Anotações salvas.");
     } catch (err) {
       showToast("Erro ao salvar: " + err.message, "error");
@@ -399,6 +400,22 @@ function showToast(msg, type = "success") {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function formatUpdatedAt(ts) {
+  if (!ts) return "";
+  const date = ts.toDate ? ts.toDate() : new Date(ts);
+  const now = new Date();
+  const diff = Math.floor((now - date) / 1000);
+
+  let label;
+  if (diff < 60)           label = "agora mesmo";
+  else if (diff < 3600)    label = `há ${Math.floor(diff / 60)} min`;
+  else if (diff < 86400)   label = `há ${Math.floor(diff / 3600)} h`;
+  else if (diff < 604800)  label = `há ${Math.floor(diff / 86400)} d`;
+  else label = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+
+  return `<time class="card__updated" datetime="${date.toISOString()}" title="${date.toLocaleString("pt-BR")}">Editado ${label}</time>`;
+}
+
 function escHtml(str) {
   return String(str)
     .replace(/&/g, "&amp;")
