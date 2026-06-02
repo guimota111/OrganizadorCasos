@@ -90,23 +90,27 @@ function buildRow(c, collection) {
     <div class="list-row__fap">${escHtml(c.fap)}</div>
     <div class="list-row__main">
       <div class="list-row__nome">${escHtml(c.nome)}</div>
-      ${c.remetente ? `<div class="list-row__remetente">📨 ${escHtml(c.remetente)}</div>` : ""}
-      ${c.resumo    ? `<div class="list-row__resumo">${escHtml(c.resumo)}</div>` : ""}
     </div>
     ${statusBadge}
-    <button class="list-row__toggle" data-action="toggle-detail" aria-expanded="false">
-      Detalhes ▾
-    </button>
+    <span class="list-row__chevron" aria-hidden="true">▾</span>
     <div class="list-row__detail" hidden>
+      ${c.remetente ? `<p class="list-row__remetente">📨 Enviado por <strong>${escHtml(c.remetente)}</strong></p>` : ""}
+      ${c.resumo    ? `<p class="list-row__resumo-detail">${escHtml(c.resumo)}</p>` : ""}
       ${c.status === "pendencia" && c.pendenciaDesc
         ? `<div class="list-row__pendencia"><strong>Pendência:</strong> ${escHtml(c.pendenciaDesc)}</div>` : ""}
-      <label style="font-size:12px;font-weight:600;">Anotações do preceptor</label>
+      <label class="list-row__notes-label">Anotações do preceptor${c.notasPreceptor ? ' <span class="notes-dot"></span>' : ""}</label>
       <textarea placeholder="Anote aqui os comentários do preceptor...">${c.notasPreceptor ? escHtml(c.notasPreceptor) : ""}</textarea>
       <div class="list-row__detail-actions">
         <button class="btn btn--primary btn--sm" data-action="save-notes">Salvar anotações</button>
         <button class="btn btn--ghost btn--sm" data-action="copy-fap" data-fap="${escHtml(c.fap)}">📋 Copiar FAP</button>
       </div>
     </div>`;
+
+  // click anywhere on the summary row (not inside the detail) toggles expand
+  row.addEventListener("click", (e) => {
+    if (e.target.closest(".list-row__detail") || e.target.closest(".list-row__handle")) return;
+    toggleDetail(row);
+  });
 
   row.querySelectorAll("[data-action]").forEach((btn) => {
     btn.addEventListener("click", (e) => handleRowAction(e, c, collection, row));
@@ -115,18 +119,20 @@ function buildRow(c, collection) {
   return row;
 }
 
+function toggleDetail(row) {
+  const detail  = row.querySelector(".list-row__detail");
+  const chevron = row.querySelector(".list-row__chevron");
+  const open    = detail.hidden;
+  detail.hidden = !open;
+  row.classList.toggle("list-row--expanded", open);
+  chevron.style.transform = open ? "rotate(180deg)" : "";
+}
+
 async function handleRowAction(e, c, col, row) {
   e.stopPropagation();
   const action = e.currentTarget.dataset.action;
 
-  if (action === "toggle-detail") {
-    const detail = row.querySelector(".list-row__detail");
-    const open   = detail.hidden;
-    detail.hidden = !open;
-    e.currentTarget.setAttribute("aria-expanded", String(open));
-    e.currentTarget.textContent = open ? "Fechar ▴" : "Detalhes ▾";
-    if (open) row.querySelector("textarea").focus();
-  } else if (action === "save-notes") {
+  if (action === "save-notes") {
     const val = row.querySelector("textarea").value.trim();
     await updateDoc(doc(db, col, c.id), { notasPreceptor: val, updatedAt: serverTimestamp() });
     flash(row, "✅ Salvo");
