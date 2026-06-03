@@ -510,18 +510,13 @@ document.getElementById("export-img-btn").addEventListener("click", () => {
     ctx.font = "600 13px Inter, system-ui, sans-serif";
     ctx.fillText(clip(c.nome, 30), COLS[2].x, y + 2);
 
-    // Resumo em uma linha
+    // Resumo em uma linha (laranja se pendência)
     if (c.resumoLinha) {
-      ctx.fillStyle = "#334155";
-      ctx.font = "13px Inter, system-ui, sans-serif";
+      ctx.fillStyle = c.status === "pendencia" ? "#d97706" : "#334155";
+      ctx.font = c.status === "pendencia"
+        ? "italic 13px Inter, system-ui, sans-serif"
+        : "13px Inter, system-ui, sans-serif";
       ctx.fillText(clip(c.resumoLinha, 52), COLS[3].x, y + 2);
-    }
-
-    // pendência note
-    if (c.status === "pendencia" && c.pendenciaDesc) {
-      ctx.fillStyle = "#d97706";
-      ctx.font = "italic 11px Inter, system-ui, sans-serif";
-      ctx.fillText("⏳ " + clip(c.pendenciaDesc, 55), COLS[2].x, y + 16);
     }
 
     // bottom rule
