@@ -83,7 +83,7 @@ body {
 /* ── Stats bar ──────────────────────────────────────────────────────────────── */
 .stats-bar {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 12px;
   margin-top: 24px;
 }
@@ -101,11 +101,12 @@ body {
   line-height: 1;
   color: var(--clr-primary);
 }
-.stat-card--a-ser-visto .stat-card__value  { color: #2563eb; }
-.stat-card--encaminhado .stat-card__value  { color: var(--clr-success); }
-.stat-card--terceirizado .stat-card__value { color: #7c3aed; }
-.stat-card--pendencia .stat-card__value    { color: var(--clr-warning); }
-.stat-card--liberado .stat-card__value     { color: var(--clr-text-muted); }
+.stat-card--nao-visto .stat-card__value { color: #64748b; }
+.stat-card--visto .stat-card__value     { color: #16a34a; }
+.stat-card--laudado .stat-card__value   { color: #166534; }
+.stat-card--pendencia .stat-card__value { color: var(--clr-warning); }
+.stat-card--outros .stat-card__value    { color: #2563eb; }
+.stat-card--liberado .stat-card__value  { color: var(--clr-text-muted); }
 .stat-card__label {
   font-size: 12px;
   color: var(--clr-text-muted);
@@ -555,7 +556,7 @@ body {
 
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .stats-bar { grid-template-columns: repeat(3, 1fr); }
+  .stats-bar { grid-template-columns: repeat(4, 1fr); }
 }
 @media (max-width: 600px) {
   .stats-bar { grid-template-columns: repeat(2, 1fr); }

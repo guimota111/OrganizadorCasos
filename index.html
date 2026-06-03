@@ -29,21 +29,25 @@
         <div class="stat-card__value" id="cnt-total">—</div>
         <div class="stat-card__label">Total</div>
       </div>
-      <div class="stat-card stat-card--a-ser-visto">
-        <div class="stat-card__value" id="cnt-a-ser-visto">—</div>
-        <div class="stat-card__label">A ser visto</div>
+      <div class="stat-card stat-card--nao-visto">
+        <div class="stat-card__value" id="cnt-nao-visto">—</div>
+        <div class="stat-card__label">Não vistos</div>
       </div>
-      <div class="stat-card stat-card--encaminhado">
-        <div class="stat-card__value" id="cnt-encaminhado">—</div>
-        <div class="stat-card__label">Encaminhados</div>
+      <div class="stat-card stat-card--visto">
+        <div class="stat-card__value" id="cnt-visto">—</div>
+        <div class="stat-card__label">Vistos</div>
       </div>
-      <div class="stat-card stat-card--terceirizado">
-        <div class="stat-card__value" id="cnt-terceirizado">—</div>
-        <div class="stat-card__label">Terceirizados</div>
+      <div class="stat-card stat-card--laudado">
+        <div class="stat-card__value" id="cnt-laudado">—</div>
+        <div class="stat-card__label">Laudados</div>
       </div>
       <div class="stat-card stat-card--pendencia">
         <div class="stat-card__value" id="cnt-pendencia">—</div>
         <div class="stat-card__label">Com pendência</div>
+      </div>
+      <div class="stat-card stat-card--outros">
+        <div class="stat-card__value" id="cnt-outros">—</div>
+        <div class="stat-card__label">Outros</div>
       </div>
       <div class="stat-card stat-card--liberado">
         <div class="stat-card__value" id="cnt-liberado">—</div>
@@ -80,20 +84,24 @@
               <label>Status do caso *</label>
               <div class="radio-group">
                 <label class="radio-label">
-                  <input type="radio" name="status" value="a-ser-visto" checked />
-                  👁️ A ser visto — cadastrado, ainda não analisado
+                  <input type="radio" name="status" value="nao-visto" checked />
+                  ⬜ Não visto — cadastrado, ainda não analisado
                 </label>
                 <label class="radio-label">
-                  <input type="radio" name="status" value="encaminhado" />
-                  ✅ Encaminhado — aguardando discussão com o preceptor
+                  <input type="radio" name="status" value="visto" />
+                  🟢 Visto — analisado, aguardando laudo
                 </label>
                 <label class="radio-label">
-                  <input type="radio" name="status" value="terceirizado" />
-                  🔀 Terceirizado — está no monitor, com outro profissional
+                  <input type="radio" name="status" value="laudado" />
+                  ✅ Laudado — laudo emitido, aguardando discussão
                 </label>
                 <label class="radio-label">
                   <input type="radio" name="status" value="pendencia" />
                   ⏳ Pendência — descrever abaixo
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="status" value="outros" />
+                  🔵 Outros — caso de outro profissional
                 </label>
               </div>
             </div>
@@ -114,10 +122,11 @@
     <div class="list-toolbar">
       <div class="list-toolbar__filters">
         <button class="filter-btn active" data-filter="all">Todos <span class="filter-count" id="cnt-all">—</span></button>
-        <button class="filter-btn" data-filter="a-ser-visto">👁️ A ser visto <span class="filter-count" id="cnt-f-a-ser-visto">—</span></button>
-        <button class="filter-btn" data-filter="encaminhado">✅ Encaminhado <span class="filter-count" id="cnt-f-encaminhado">—</span></button>
-        <button class="filter-btn" data-filter="terceirizado">🔀 Terceirizado <span class="filter-count" id="cnt-f-terceirizado">—</span></button>
+        <button class="filter-btn" data-filter="nao-visto">⬜ Não visto <span class="filter-count" id="cnt-f-nao-visto">—</span></button>
+        <button class="filter-btn" data-filter="visto">🟢 Visto <span class="filter-count" id="cnt-f-visto">—</span></button>
+        <button class="filter-btn" data-filter="laudado">✅ Laudado <span class="filter-count" id="cnt-f-laudado">—</span></button>
         <button class="filter-btn" data-filter="pendencia">⏳ Pendência <span class="filter-count" id="cnt-f-pendencia">—</span></button>
+        <button class="filter-btn" data-filter="outros">🔵 Outros <span class="filter-count" id="cnt-f-outros">—</span></button>
       </div>
       <div style="display:flex;align-items:center;gap:12px;">
         <button class="btn btn--ghost btn--sm" id="export-img-btn">📷 Gerar imagem</button>

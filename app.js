@@ -111,13 +111,14 @@ function render() {
     .sort((a, b) => (b.updatedAt?.seconds ?? 0) - (a.updatedAt?.seconds ?? 0));
 
   // counters
-  document.getElementById("cnt-total").textContent        = allCases.length;
-  document.getElementById("cnt-a-ser-visto").textContent  = open.filter((c) => c.status === "a-ser-visto").length;
-  document.getElementById("cnt-encaminhado").textContent  = open.filter((c) => c.status === "encaminhado").length;
-  document.getElementById("cnt-terceirizado").textContent = open.filter((c) => c.status === "terceirizado").length;
-  document.getElementById("cnt-pendencia").textContent    = open.filter((c) => c.status === "pendencia").length;
-  document.getElementById("cnt-liberado").textContent     = released.length;
-  document.getElementById("badge-liberado").textContent   = released.length;
+  document.getElementById("cnt-total").textContent    = allCases.length;
+  document.getElementById("cnt-nao-visto").textContent= open.filter((c) => c.status === "nao-visto").length;
+  document.getElementById("cnt-visto").textContent    = open.filter((c) => c.status === "visto").length;
+  document.getElementById("cnt-laudado").textContent  = open.filter((c) => c.status === "laudado").length;
+  document.getElementById("cnt-pendencia").textContent= open.filter((c) => c.status === "pendencia").length;
+  document.getElementById("cnt-outros").textContent   = open.filter((c) => c.status === "outros").length;
+  document.getElementById("cnt-liberado").textContent = released.length;
+  document.getElementById("badge-liberado").textContent = released.length;
   updateFilterCounts(open);
 
   // open list
@@ -134,11 +135,12 @@ function render() {
 }
 
 function updateFilterCounts(open) {
-  document.getElementById("cnt-all").textContent           = open.length;
-  document.getElementById("cnt-f-a-ser-visto").textContent = open.filter((c) => c.status === "a-ser-visto").length;
-  document.getElementById("cnt-f-encaminhado").textContent = open.filter((c) => c.status === "encaminhado").length;
-  document.getElementById("cnt-f-terceirizado").textContent= open.filter((c) => c.status === "terceirizado").length;
-  document.getElementById("cnt-f-pendencia").textContent   = open.filter((c) => c.status === "pendencia").length;
+  document.getElementById("cnt-all").textContent          = open.length;
+  document.getElementById("cnt-f-nao-visto").textContent  = open.filter((c) => c.status === "nao-visto").length;
+  document.getElementById("cnt-f-visto").textContent      = open.filter((c) => c.status === "visto").length;
+  document.getElementById("cnt-f-laudado").textContent    = open.filter((c) => c.status === "laudado").length;
+  document.getElementById("cnt-f-pendencia").textContent  = open.filter((c) => c.status === "pendencia").length;
+  document.getElementById("cnt-f-outros").textContent     = open.filter((c) => c.status === "outros").length;
 }
 
 // ─── Filter buttons ───────────────────────────────────────────────────────────
@@ -151,6 +153,14 @@ document.querySelectorAll(".filter-btn").forEach((btn) => {
   });
 });
 
+const STATUS_OPTIONS = [
+  { value: "nao-visto", label: "⬜ Não visto" },
+  { value: "visto",     label: "🟢 Visto" },
+  { value: "laudado",   label: "✅ Laudado" },
+  { value: "pendencia", label: "⏳ Pendência" },
+  { value: "outros",    label: "🔵 Outros" },
+];
+
 // ─── Open case row ────────────────────────────────────────────────────────────
 function buildRow(c) {
   const row = document.createElement("div");
@@ -158,22 +168,19 @@ function buildRow(c) {
   row.setAttribute("draggable", "true");
   row.dataset.id = c.id;
 
-  const badge = {
-    "a-ser-visto":  `<span class="badge badge--a-ser-visto">👁️ A ser visto</span>`,
-    "encaminhado":  `<span class="badge badge--encaminhado">✅ Encaminhado</span>`,
-    "terceirizado": `<span class="badge badge--terceirizado">🔀 Terceirizado</span>`,
-    "pendencia":    `<span class="badge badge--pendencia">⏳ Pendência</span>`,
-  }[c.status] ?? "";
+  const selectOptions = STATUS_OPTIONS.map((o) =>
+    `<option value="${o.value}"${c.status === o.value ? " selected" : ""}>${o.label}</option>`
+  ).join("");
 
   row.innerHTML = `
     <div class="list-row__handle" title="Arrastar para reordenar">⠿</div>
     <button class="list-row__check" data-action="toggle-check" title="Marcar como checado">✓</button>
-    <div class="list-row__fap">${escHtml(c.fap)}</div>
+    <div class="list-row__fap" title="Clique para copiar FAP" style="cursor:pointer;">${escHtml(c.fap)}</div>
     <div class="list-row__main">
       <div class="list-row__nome">${escHtml(c.nome)}</div>
       ${c.resumoLinha ? `<div class="list-row__resumo-linha">${escHtml(c.resumoLinha)}</div>` : ""}
     </div>
-    ${badge}
+    <select class="status-select status-select--${c.status}" data-action="change-status">${selectOptions}</select>
     <span class="list-row__chevron" aria-hidden="true">▾</span>
     <div class="list-row__detail" hidden>
       ${c.resumo ? `<p class="list-row__resumo-detail">${escHtml(c.resumo)}</p>` : ""}
@@ -184,7 +191,6 @@ function buildRow(c) {
       <div class="list-row__detail-actions">
         <button class="btn btn--primary btn--sm" data-action="save-notes">Salvar anotações</button>
         <button class="btn btn--ghost btn--sm" data-action="edit-case">Editar caso</button>
-        <button class="btn btn--ghost btn--sm" data-action="copy-fap" data-fap="${escHtml(c.fap)}">📋 Copiar FAP</button>
         <button class="btn btn--success btn--sm" data-action="liberar">Liberar caso</button>
         <button class="btn btn--warning btn--sm" data-action="add-pendencia">⏳ Adicionar pendência</button>
         <button class="btn btn--danger btn--sm" data-action="excluir" data-nome="${escHtml(c.nome)}">Excluir</button>
@@ -196,13 +202,29 @@ function buildRow(c) {
       </div>
     </div>`;
 
+  // Click FAP to copy
+  row.querySelector(".list-row__fap").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(c.fap).catch(() => {});
+    const el = e.currentTarget;
+    const orig = el.textContent;
+    el.textContent = "✅ Copiado!";
+    setTimeout(() => { el.textContent = orig; }, 1500);
+  });
+
   row.addEventListener("click", (e) => {
-    if (e.target.closest(".list-row__detail") || e.target.closest(".list-row__handle")) return;
+    if (e.target.closest(".list-row__detail") || e.target.closest(".list-row__handle") || e.target.closest(".status-select")) return;
     toggleRowDetail(row);
   });
   row.querySelectorAll("[data-action]").forEach((btn) =>
     btn.addEventListener("click", (e) => handleRowAction(e, c, row))
   );
+  // Status dropdown change
+  row.querySelector(".status-select").addEventListener("change", async (e) => {
+    e.stopPropagation();
+    const newStatus = e.target.value;
+    await updateDoc(doc(db, "casos", c.id), { status: newStatus, updatedAt: serverTimestamp() });
+  });
   return row;
 }
 
@@ -226,13 +248,6 @@ async function handleRowAction(e, c, row) {
     const val = row.querySelector("textarea").value.trim();
     await updateDoc(doc(db, "casos", c.id), { notasPreceptor: val, updatedAt: serverTimestamp() });
     flash(row, "✅ Salvo");
-
-  } else if (action === "copy-fap") {
-    await navigator.clipboard.writeText(c.fap).catch(() => {});
-    const btn = e.currentTarget;
-    const orig = btn.textContent;
-    btn.textContent = "✅ Copiado!";
-    setTimeout(() => { btn.textContent = orig; }, 1500);
 
   } else if (action === "liberar") {
     await updateDoc(doc(db, "casos", c.id), { liberado: true, checked: false, updatedAt: serverTimestamp() });
@@ -286,7 +301,7 @@ function buildReleasedRow(c) {
   row.innerHTML = `
     <div></div>
     <div></div>
-    <div class="list-row__fap" style="color:var(--clr-text-muted)">${escHtml(c.fap)}</div>
+    <div class="list-row__fap" style="color:var(--clr-text-muted);cursor:pointer;" title="Clique para copiar FAP">${escHtml(c.fap)}</div>
     <div class="list-row__main"><div class="list-row__nome" style="color:var(--clr-text-muted);font-weight:500;">${escHtml(c.nome)}</div></div>
     <span class="badge badge--liberado">Liberado ${when}</span>
     <span class="list-row__chevron" aria-hidden="true">▾</span>
@@ -294,13 +309,20 @@ function buildReleasedRow(c) {
       ${c.resumo ? `<p class="list-row__resumo-detail">${escHtml(c.resumo)}</p>` : ""}
       ${c.notasPreceptor ? `<div><strong style="font-size:12px;">Anotações:</strong><p style="font-size:13px;margin-top:4px;">${escHtml(c.notasPreceptor)}</p></div>` : ""}
       <div class="list-row__detail-actions" style="margin-top:10px;">
-        <button class="btn btn--ghost btn--sm" data-action="copy-fap" data-fap="${escHtml(c.fap)}">📋 Copiar FAP</button>
         <button class="btn btn--danger btn--sm" data-action="excluir" data-nome="${escHtml(c.nome)}">Excluir</button>
       </div>
     </div>`;
 
+  row.querySelector(".list-row__fap").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(c.fap).catch(() => {});
+    const el = e.currentTarget;
+    const orig = el.textContent;
+    el.textContent = "✅ Copiado!";
+    setTimeout(() => { el.textContent = orig; }, 1500);
+  });
   row.addEventListener("click", (e) => {
-    if (e.target.closest(".list-row__detail")) return;
+    if (e.target.closest(".list-row__detail") || e.target.closest(".list-row__fap")) return;
     toggleRowDetail(row);
   });
   row.querySelectorAll("[data-action]").forEach((btn) =>
@@ -312,12 +334,7 @@ function buildReleasedRow(c) {
 async function handleReleasedRowAction(e, c) {
   e.stopPropagation();
   const action = e.currentTarget.dataset.action;
-  if (action === "copy-fap") {
-    await navigator.clipboard.writeText(c.fap).catch(() => {});
-    const btn = e.currentTarget;
-    btn.textContent = "✅ Copiado!";
-    setTimeout(() => { btn.textContent = "📋 Copiar FAP"; }, 1500);
-  } else if (action === "excluir") {
+  if (action === "excluir") {
     pendingDeleteId = c.id;
     deleteModalMsg.textContent = `Excluir o caso de "${e.currentTarget.dataset.nome}"? Esta ação não pode ser desfeita.`;
     deleteModal.hidden = false;
@@ -497,10 +514,11 @@ document.getElementById("export-img-btn").addEventListener("click", () => {
 
   // ── rows
   const STATUS_COLORS = {
-    "a-ser-visto":  "#2563eb",
-    "encaminhado":  "#16a34a",
-    "terceirizado": "#7c3aed",
-    "pendencia":    "#d97706",
+    "nao-visto": "#94a3b8",
+    "visto":     "#86efac",
+    "laudado":   "#16a34a",
+    "pendencia": "#d97706",
+    "outros":    "#93c5fd",
   };
 
   let curY = HDR_H + 26;
