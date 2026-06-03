@@ -519,9 +519,11 @@ function flash(row, msg) {
       const mimeType = selectedFile.type;
 
       const prompt = `Analise esta imagem de um sistema de patologia/hospital e extraia todos os casos listados.
-Para cada caso, identifique o nome do paciente e o código FAP (pode aparecer como FAP, número de protocolo, ou código similar).
+Para cada caso, identifique:
+- Nome do paciente
+- FAP: um número com EXATAMENTE 12 dígitos numéricos (sem letras, sem traços). Ignore qualquer outro número que não tenha exatamente 12 dígitos.
 Retorne APENAS um JSON válido, sem markdown, sem explicações, no formato:
-[{"nome": "Nome do Paciente", "fap": "FAP-XXXX-XXXX"}, ...]
+[{"nome": "Nome do Paciente", "fap": "123456789012"}, ...]
 Se não encontrar casos, retorne [].`;
 
       const res = await fetch("https://patologia-proxy.guimota1.workers.dev/", {
@@ -552,7 +554,8 @@ Se não encontrar casos, retorne [].`;
       const data = await res.json();
       const text = data?.content?.[0]?.text ?? "[]";
       const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      const extracted = JSON.parse(jsonStr);
+      const parsed = JSON.parse(jsonStr);
+      const extracted = parsed.filter((c) => /^\d{12}$/.test((c.fap ?? "").trim()));
 
       showResults(extracted);
     } catch (err) {
