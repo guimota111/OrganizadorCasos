@@ -11,17 +11,41 @@
 </head>
 <body>
 
-  <header class="site-header">
+  <!-- ── Tela de login ── -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="login-card__header">
+        <span style="font-size:32px;">🔬</span>
+        <h1>Organizador de Casos</h1>
+        <p>Patologia — controle de pré-laudos</p>
+      </div>
+      <form id="login-form" novalidate>
+        <div class="form-group">
+          <label for="login-email">E-mail</label>
+          <input type="email" id="login-email" placeholder="seu@email.com" required />
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <label for="login-password">Senha</label>
+          <input type="password" id="login-password" placeholder="••••••••" required />
+        </div>
+        <p id="login-error" style="color:var(--clr-danger);font-size:13px;margin-top:10px;" hidden></p>
+        <button type="submit" class="btn btn--primary" style="width:100%;margin-top:16px;" id="login-btn">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <header class="site-header" id="main-header" hidden>
     <div class="site-header__inner">
       <span class="site-header__icon">🔬</span>
       <div>
         <h1>Organizador de Casos</h1>
         <p class="site-header__sub">Patologia — controle de pré-laudos</p>
       </div>
+      <button class="btn btn--ghost btn--sm" id="logout-btn" style="margin-left:auto;">Sair</button>
     </div>
   </header>
 
-  <div class="page-wrapper">
+  <div class="page-wrapper" id="main-content" hidden>
 
     <!-- ── Contadores ── -->
     <div class="stats-bar" role="region" aria-label="Resumo de casos">

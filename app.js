@@ -4,7 +4,7 @@ import {
   doc, onSnapshot, query, orderBy,
   serverTimestamp, writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let allCases     = [];
@@ -98,20 +98,57 @@ function cancelEdit() {
   toggleSection(formBody, formToggle, false);
 }
 
-// ─── Firestore listener (starts only after auth is ready) ────────────────────
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    showToast("Erro de autenticação — recarregue a página.", "error");
-    return;
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+const loginScreen  = document.getElementById("login-screen");
+const mainHeader   = document.getElementById("main-header");
+const mainContent  = document.getElementById("main-content");
+const loginForm    = document.getElementById("login-form");
+const loginError   = document.getElementById("login-error");
+const loginBtn     = document.getElementById("login-btn");
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email    = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  loginBtn.disabled = true;
+  loginBtn.textContent = "Entrando…";
+  loginError.hidden = true;
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch {
+    loginError.textContent = "E-mail ou senha incorretos.";
+    loginError.hidden = false;
+    loginBtn.disabled = false;
+    loginBtn.textContent = "Entrar";
   }
-  onSnapshot(
-    query(collection(db, "casos"), orderBy("createdAt", "desc")),
-    (snap) => {
-      allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      render();
-    },
-    (err) => showToast("Erro ao carregar casos: " + err.message, "error")
-  );
+});
+
+document.getElementById("logout-btn").addEventListener("click", () => signOut(auth));
+
+let unsubscribeSnapshot = null;
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    loginScreen.hidden  = true;
+    mainHeader.hidden   = false;
+    mainContent.hidden  = false;
+    loginBtn.disabled   = false;
+    loginBtn.textContent = "Entrar";
+    unsubscribeSnapshot = onSnapshot(
+      query(collection(db, "casos"), orderBy("createdAt", "desc")),
+      (snap) => {
+        allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        render();
+      },
+      (err) => showToast("Erro ao carregar casos: " + err.message, "error")
+    );
+  } else {
+    loginScreen.hidden  = false;
+    mainHeader.hidden   = true;
+    mainContent.hidden  = true;
+    if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+    allCases = [];
+  }
 });
 
 // ─── Render ───────────────────────────────────────────────────────────────────

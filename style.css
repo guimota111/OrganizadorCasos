@@ -554,6 +554,40 @@ body {
 .modal p  { font-size: 14px; color: var(--clr-text-muted); margin-bottom: 20px; }
 .modal__actions { display: flex; gap: 10px; justify-content: flex-end; }
 
+/* ── Login screen ───────────────────────────────────────────────────────────── */
+#login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--clr-bg);
+  padding: 24px;
+}
+.login-card {
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 380px;
+}
+.login-card__header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.login-card__header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--clr-primary);
+  margin-top: 8px;
+}
+.login-card__header p {
+  font-size: 13px;
+  color: var(--clr-text-muted);
+  margin-top: 2px;
+}
+
 /* ── Import modal ───────────────────────────────────────────────────────────── */
 .modal--wide {
   max-width: 560px;
