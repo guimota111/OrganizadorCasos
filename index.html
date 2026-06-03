@@ -7,10 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="lista.css" />
 </head>
 <body>
 
-  <!-- ── Header ── -->
   <header class="site-header">
     <div class="site-header__inner">
       <span class="site-header__icon">🔬</span>
@@ -18,9 +18,6 @@
         <h1>Organizador de Casos</h1>
         <p class="site-header__sub">Patologia — controle de pré-laudos</p>
       </div>
-      <nav class="site-nav">
-        <a href="lista.html" class="nav-link">📋 Lista de check</a>
-      </nav>
     </div>
   </header>
 
@@ -54,295 +51,107 @@
       </div>
     </div>
 
-    <!-- ── Formulário — Casos próprios ── -->
-    <section class="section" id="form-section" aria-labelledby="form-title">
+    <!-- ── Formulário — Novo Caso ── -->
+    <section class="section" id="form-section">
       <button type="button" class="section__toggle" id="form-toggle" aria-expanded="false" aria-controls="form-body">
         <h2 class="section__title">📝 <span id="form-title">Novo Caso</span></h2>
         <span class="section__chevron" aria-hidden="true">▾</span>
       </button>
-
       <div id="form-body" hidden>
-      <form id="case-form" novalidate>
-        <div class="form-grid">
-
-          <div class="form-group">
-            <label for="nome">Nome do paciente *</label>
-            <input type="text" id="nome" placeholder="Ex.: João da Silva" required />
-          </div>
-
-          <div class="form-group">
-            <label for="fap">FAP — código do caso *</label>
-            <input type="text" id="fap" placeholder="Ex.: FAP-2024-001" required />
-          </div>
-
-          <div class="form-group form-group--full">
-            <label for="resumo">Resumo clínico</label>
-            <textarea id="resumo" rows="3" placeholder="Breve descrição do caso para referência..."></textarea>
-          </div>
-
-          <div class="form-group form-group--full">
-            <label>Status do caso *</label>
-            <div class="radio-group">
-              <label class="radio-label">
-                <input type="radio" name="status" value="a-ser-visto" checked />
-                👁️ A ser visto — cadastrado, ainda não analisado
-              </label>
-              <label class="radio-label">
-                <input type="radio" name="status" value="encaminhado" />
-                ✅ Encaminhado — aguardando discussão com o preceptor
-              </label>
-              <label class="radio-label">
-                <input type="radio" name="status" value="terceirizado" />
-                🔀 Terceirizado — está no monitor, com outro profissional
-              </label>
-              <label class="radio-label">
-                <input type="radio" name="status" value="pendencia" />
-                ⏳ Pendência — descrever abaixo
-              </label>
+        <form id="case-form" novalidate>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="nome">Nome do paciente *</label>
+              <input type="text" id="nome" placeholder="Ex.: João da Silva" required />
+            </div>
+            <div class="form-group">
+              <label for="fap">FAP — código do caso *</label>
+              <input type="text" id="fap" placeholder="Ex.: FAP-2024-001" required />
+            </div>
+            <div class="form-group form-group--full">
+              <label for="resumo">Resumo clínico</label>
+              <textarea id="resumo" rows="3" placeholder="Breve descrição do caso para referência..."></textarea>
+            </div>
+            <div class="form-group form-group--full">
+              <label>Status do caso *</label>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="status" value="a-ser-visto" checked />
+                  👁️ A ser visto — cadastrado, ainda não analisado
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="status" value="encaminhado" />
+                  ✅ Encaminhado — aguardando discussão com o preceptor
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="status" value="terceirizado" />
+                  🔀 Terceirizado — está no monitor, com outro profissional
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="status" value="pendencia" />
+                  ⏳ Pendência — descrever abaixo
+                </label>
+              </div>
+            </div>
+            <div class="form-group form-group--full" id="pendencia-group" hidden>
+              <label for="pendencia-desc">Descrição da pendência</label>
+              <input type="text" id="pendencia-desc" placeholder="Descreva o que está pendente..." />
             </div>
           </div>
-
-          <div class="form-group form-group--full" id="pendencia-group" hidden>
-            <label for="pendencia-desc">Descrição da pendência</label>
-            <input type="text" id="pendencia-desc" placeholder="Descreva o que está pendente..." />
+          <div class="form-actions" style="margin-top:20px;">
+            <button type="submit" class="btn btn--primary">Salvar caso</button>
+            <button type="button" class="btn btn--ghost" id="cancel-edit" hidden>Cancelar edição</button>
           </div>
-
-        </div><!-- /form-grid -->
-
-        <div class="form-actions" style="margin-top:20px;">
-          <button type="submit" class="btn btn--primary">Salvar caso</button>
-          <button type="button" class="btn btn--ghost" id="cancel-edit" hidden>Cancelar edição</button>
-        </div>
-      </form>
+        </form>
       </div>
     </section>
 
-    <!-- ── Lista de casos próprios ── -->
-    <section class="section" aria-label="Lista de casos">
-
-      <div class="tabs" role="tablist">
-        <button class="tab-btn active" role="tab" aria-selected="true" data-tab="tab-open">
-          Em aberto
-          <span class="tab-badge" id="badge-open">0</span>
-        </button>
-        <button class="tab-btn" role="tab" aria-selected="false" data-tab="tab-released">
-          Casos liberados
-          <span class="tab-badge" id="badge-released">0</span>
-        </button>
+    <!-- ── Filtros e lista ── -->
+    <div class="list-toolbar">
+      <div class="list-toolbar__filters">
+        <button class="filter-btn active" data-filter="all">Todos <span class="filter-count" id="cnt-all">—</span></button>
+        <button class="filter-btn" data-filter="a-ser-visto">👁️ A ser visto <span class="filter-count" id="cnt-f-a-ser-visto">—</span></button>
+        <button class="filter-btn" data-filter="encaminhado">✅ Encaminhado <span class="filter-count" id="cnt-f-encaminhado">—</span></button>
+        <button class="filter-btn" data-filter="terceirizado">🔀 Terceirizado <span class="filter-count" id="cnt-f-terceirizado">—</span></button>
+        <button class="filter-btn" data-filter="pendencia">⏳ Pendência <span class="filter-count" id="cnt-f-pendencia">—</span></button>
       </div>
-
-      <!-- Aba: em aberto — quatro colunas -->
-      <div class="tab-panel active" id="tab-open" role="tabpanel">
-        <div class="columns">
-
-          <div class="column">
-            <div class="column__header column__header--a-ser-visto">
-              <span class="column__icon">👁️</span>
-              <div>
-                <h3 class="column__title">A ser visto</h3>
-                <p class="column__sub">Cadastrado, ainda não analisado</p>
-              </div>
-            </div>
-            <div class="card-list" id="a-ser-visto-list"></div>
-            <div class="empty-state" id="empty-a-ser-visto">
-              <div class="empty-state__icon">📋</div>
-              <p>Nenhum caso aguardando.</p>
-            </div>
-          </div>
-
-          <div class="column">
-            <div class="column__header column__header--encaminhado">
-              <span class="column__icon">✅</span>
-              <div>
-                <h3 class="column__title">Encaminhados</h3>
-                <p class="column__sub">Aguardando discussão com o preceptor</p>
-              </div>
-            </div>
-            <div class="card-list" id="encaminhado-list"></div>
-            <div class="empty-state" id="empty-encaminhado">
-              <div class="empty-state__icon">📭</div>
-              <p>Nenhum caso encaminhado.</p>
-            </div>
-          </div>
-
-          <div class="column">
-            <div class="column__header column__header--terceirizado">
-              <span class="column__icon">🔀</span>
-              <div>
-                <h3 class="column__title">Terceirizados</h3>
-                <p class="column__sub">No monitor, com outro profissional</p>
-              </div>
-            </div>
-            <div class="card-list" id="terceirizado-list"></div>
-            <div class="empty-state" id="empty-terceirizado">
-              <div class="empty-state__icon">📤</div>
-              <p>Nenhum caso terceirizado.</p>
-            </div>
-          </div>
-
-          <div class="column">
-            <div class="column__header column__header--pendencia">
-              <span class="column__icon">⏳</span>
-              <div>
-                <h3 class="column__title">Com pendência</h3>
-                <p class="column__sub">Ainda não podem ser discutidos</p>
-              </div>
-            </div>
-            <div class="card-list" id="pendencia-list"></div>
-            <div class="empty-state" id="empty-pendencia">
-              <div class="empty-state__icon">✨</div>
-              <p>Sem pendências no momento.</p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- Aba: liberados -->
-      <div class="tab-panel" id="tab-released" role="tabpanel">
-        <div class="card-list" id="released-list"></div>
-        <div class="empty-state" id="empty-released">
-          <div class="empty-state__icon">📂</div>
-          <p>Nenhum caso liberado ainda.</p>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-    <!-- ── Segunda Opinião ── -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
-
-    <div class="section-divider">
-      <span>Segunda Opinião</span>
+      <p class="list-toolbar__hint">Arraste as linhas para reordenar</p>
     </div>
 
-    <!-- Formulário — segunda opinião -->
-    <section class="section section--opiniao" id="opiniao-form-section">
-      <button type="button" class="section__toggle" id="opiniao-form-toggle" aria-expanded="false" aria-controls="opiniao-form-body">
-        <h2 class="section__title">🔍 <span id="opiniao-form-title">Novo Caso de Segunda Opinião</span></h2>
+    <div class="list-surface">
+      <div id="case-list"></div>
+      <div class="empty-state" id="empty-list" hidden>
+        <div class="empty-state__icon">🎉</div>
+        <p>Nenhum caso em aberto.</p>
+      </div>
+    </div>
+
+    <!-- ── Casos liberados ── -->
+    <section class="section" id="released-section" style="margin-top:24px;">
+      <button type="button" class="section__toggle" id="released-toggle" aria-expanded="false" aria-controls="released-body">
+        <h2 class="section__title">📂 Casos liberados <span class="tab-badge" id="badge-liberado" style="margin-left:8px;">0</span></h2>
         <span class="section__chevron" aria-hidden="true">▾</span>
       </button>
-
-      <div id="opiniao-form-body" hidden>
-      <form id="opiniao-form" novalidate>
-        <div class="form-grid">
-
-          <div class="form-group">
-            <label for="op-nome">Nome do paciente *</label>
-            <input type="text" id="op-nome" placeholder="Ex.: Maria Souza" required />
+      <div id="released-body" hidden>
+        <div class="list-surface" style="margin-top:16px;">
+          <div id="released-list"></div>
+          <div class="empty-state" id="empty-released" hidden>
+            <div class="empty-state__icon">📂</div>
+            <p>Nenhum caso liberado ainda.</p>
           </div>
-
-          <div class="form-group">
-            <label for="op-fap">FAP / código do caso *</label>
-            <input type="text" id="op-fap" placeholder="Ex.: FAP-2024-050" required />
-          </div>
-
-          <div class="form-group form-group--full">
-            <label for="op-remetente">Enviado por *</label>
-            <input type="text" id="op-remetente" placeholder="Ex.: Dr. Carlos (HU)" required />
-          </div>
-
-          <div class="form-group form-group--full">
-            <label for="op-resumo">Resumo clínico</label>
-            <textarea id="op-resumo" rows="3" placeholder="Breve descrição do caso..."></textarea>
-          </div>
-
-          <div class="form-group form-group--full">
-            <label>Status *</label>
-            <div class="radio-group">
-              <label class="radio-label">
-                <input type="radio" name="op-status" value="a-ver" checked />
-                👁️ A ver — recebido, ainda não analisado
-              </label>
-              <label class="radio-label">
-                <input type="radio" name="op-status" value="encaminhado" />
-                ✅ Encaminhado — aguardando discussão com o preceptor
-              </label>
-            </div>
-          </div>
-
         </div>
-
-        <div class="form-actions" style="margin-top:20px;">
-          <button type="submit" class="btn btn--primary btn--opiniao">Salvar caso</button>
-          <button type="button" class="btn btn--ghost" id="op-cancel-edit" hidden>Cancelar edição</button>
-        </div>
-      </form>
       </div>
     </section>
 
-    <!-- Lista — segunda opinião -->
-    <section class="section section--opiniao" aria-label="Casos de segunda opinião">
-
-      <div class="tabs" role="tablist">
-        <button class="tab-btn active" role="tab" aria-selected="true" data-tab="tab-op-open">
-          Em andamento
-          <span class="tab-badge" id="badge-op-open">0</span>
-        </button>
-        <button class="tab-btn" role="tab" aria-selected="false" data-tab="tab-op-done">
-          Discutidos
-          <span class="tab-badge" id="badge-op-done">0</span>
-        </button>
-      </div>
-
-      <!-- Aba: em andamento — duas colunas -->
-      <div class="tab-panel active" id="tab-op-open" role="tabpanel">
-        <div class="columns columns--two">
-
-          <div class="column">
-            <div class="column__header column__header--a-ser-visto">
-              <span class="column__icon">👁️</span>
-              <div>
-                <h3 class="column__title">A ver</h3>
-                <p class="column__sub">Recebido, ainda não analisado</p>
-              </div>
-            </div>
-            <div class="card-list" id="op-a-ver-list"></div>
-            <div class="empty-state" id="empty-op-a-ver">
-              <div class="empty-state__icon">📬</div>
-              <p>Nenhum caso aguardando.</p>
-            </div>
-          </div>
-
-          <div class="column">
-            <div class="column__header column__header--encaminhado">
-              <span class="column__icon">✅</span>
-              <div>
-                <h3 class="column__title">Encaminhados ao preceptor</h3>
-                <p class="column__sub">Aguardando discussão</p>
-              </div>
-            </div>
-            <div class="card-list" id="op-encaminhado-list"></div>
-            <div class="empty-state" id="empty-op-encaminhado">
-              <div class="empty-state__icon">📭</div>
-              <p>Nenhum encaminhado.</p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- Aba: discutidos -->
-      <div class="tab-panel" id="tab-op-done" role="tabpanel">
-        <div class="card-list" id="op-done-list"></div>
-        <div class="empty-state" id="empty-op-done">
-          <div class="empty-state__icon">📂</div>
-          <p>Nenhum caso discutido ainda.</p>
-        </div>
-      </div>
-
-    </section>
-
-  </div><!-- /page-wrapper -->
+  </div>
 
   <!-- ── Toast ── -->
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <!-- ── Modal de confirmação de exclusão ── -->
-  <div class="modal-overlay" id="delete-modal" hidden role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+  <!-- ── Modal exclusão ── -->
+  <div class="modal-overlay" id="delete-modal" hidden role="dialog" aria-modal="true">
     <div class="modal">
-      <h2 id="delete-modal-title">Confirmar exclusão</h2>
+      <h2>Confirmar exclusão</h2>
       <p id="delete-modal-msg"></p>
       <div class="modal__actions">
         <button class="btn btn--ghost" id="cancel-delete">Cancelar</button>
