@@ -134,7 +134,7 @@
 .list-row__main { min-width: 0; }
 .list-row__resumo-linha {
   font-size: 12px;
-  color: var(--clr-text-muted);
+  color: var(--clr-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
