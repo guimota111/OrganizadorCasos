@@ -419,6 +419,240 @@ function flash(row, msg) {
   setTimeout(() => el.remove(), 1800);
 }
 
+// ─── Import from print ───────────────────────────────────────────────────────
+(function () {
+  const importModal    = document.getElementById("import-modal");
+  const stepKey        = document.getElementById("import-step-key");
+  const stepUpload     = document.getElementById("import-step-upload");
+  const stepLoading    = document.getElementById("import-step-loading");
+  const stepResults    = document.getElementById("import-step-results");
+  const apikeyInput    = document.getElementById("import-apikey-input");
+  const apikeySaveBtn  = document.getElementById("import-apikey-save");
+  const fileInput      = document.getElementById("import-file");
+  const dropzone       = document.getElementById("import-dropzone");
+  const dropzoneLabel  = document.getElementById("import-dropzone-label");
+  const previewImg     = document.getElementById("import-preview");
+  const analyzeBtn     = document.getElementById("import-analyze-btn");
+  const newList        = document.getElementById("import-new-list");
+  const existingList   = document.getElementById("import-existing-list");
+  const existingSection= document.getElementById("import-existing-section");
+  const newLabel       = document.getElementById("import-new-label");
+  const existingLabel  = document.getElementById("import-existing-label");
+  const confirmBtn     = document.getElementById("import-confirm-btn");
+
+  let selectedFile = null;
+
+  function showStep(step) {
+    [stepKey, stepUpload, stepLoading, stepResults].forEach((s) => { s.hidden = true; });
+    step.hidden = false;
+  }
+
+  function openModal() {
+    importModal.hidden = false;
+    const key = localStorage.getItem("gemini-api-key");
+    showStep(key ? stepUpload : stepKey);
+    selectedFile = null;
+    previewImg.hidden = true;
+    analyzeBtn.disabled = true;
+    dropzoneLabel.textContent = "Clique para selecionar imagem";
+  }
+
+  function closeModal() {
+    importModal.hidden = true;
+    selectedFile = null;
+    fileInput.value = "";
+  }
+
+  document.getElementById("import-print-btn").addEventListener("click", openModal);
+  document.getElementById("import-key-cancel").addEventListener("click", closeModal);
+  document.getElementById("import-upload-cancel").addEventListener("click", closeModal);
+  importModal.addEventListener("click", (e) => { if (e.target === importModal) closeModal(); });
+
+  // Save API key
+  apikeySaveBtn.addEventListener("click", () => {
+    const key = apikeyInput.value.trim();
+    if (!key) return;
+    localStorage.setItem("gemini-api-key", key);
+    apikeyInput.value = "";
+    showStep(stepUpload);
+  });
+
+  // Change key
+  document.getElementById("import-change-key").addEventListener("click", () => {
+    showStep(stepKey);
+  });
+
+  // Dropzone click
+  dropzone.addEventListener("click", () => fileInput.click());
+  dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("import-dropzone--over"); });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("import-dropzone--over"));
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("import-dropzone--over");
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith("image/")) setFile(f);
+  });
+
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files[0]) setFile(fileInput.files[0]);
+  });
+
+  function setFile(f) {
+    selectedFile = f;
+    dropzoneLabel.textContent = f.name;
+    analyzeBtn.disabled = false;
+    const url = URL.createObjectURL(f);
+    previewImg.src = url;
+    previewImg.hidden = false;
+  }
+
+  // Analyze
+  analyzeBtn.addEventListener("click", async () => {
+    if (!selectedFile) return;
+    const apiKey = localStorage.getItem("gemini-api-key");
+    if (!apiKey) { showStep(stepKey); return; }
+
+    showStep(stepLoading);
+
+    try {
+      const base64 = await fileToBase64(selectedFile);
+      const mimeType = selectedFile.type;
+
+      const prompt = `Analise esta imagem de um sistema de patologia/hospital e extraia todos os casos listados.
+Para cada caso, identifique o nome do paciente e o código FAP (pode aparecer como FAP, número de protocolo, ou código similar).
+Retorne APENAS um JSON válido, sem markdown, sem explicações, no formato:
+[{"nome": "Nome do Paciente", "fap": "FAP-XXXX-XXXX"}, ...]
+Se não encontrar casos, retorne [].`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [
+              { text: prompt },
+              { inline_data: { mime_type: mimeType, data: base64 } }
+            ]}]
+          })
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `Erro HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "[]";
+      const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const extracted = JSON.parse(jsonStr);
+
+      showResults(extracted);
+    } catch (err) {
+      showStep(stepUpload);
+      showToast("Erro: " + err.message, "error");
+    }
+  });
+
+  function showResults(extracted) {
+    const existingFaps = new Set(allCases.map((c) => (c.fap ?? "").trim().toUpperCase()));
+    const novos    = extracted.filter((c) => !existingFaps.has((c.fap ?? "").trim().toUpperCase()));
+    const jaExistem = extracted.filter((c) =>  existingFaps.has((c.fap ?? "").trim().toUpperCase()));
+
+    newList.innerHTML = "";
+    existingList.innerHTML = "";
+
+    if (novos.length === 0) {
+      newList.innerHTML = `<p style="font-size:13px;color:var(--clr-text-muted);padding:8px 0;">Nenhum caso novo encontrado.</p>`;
+      confirmBtn.disabled = true;
+    } else {
+      confirmBtn.disabled = false;
+      novos.forEach((c) => {
+        const row = document.createElement("div");
+        row.className = "import-case-row";
+        row.innerHTML = `
+          <input type="checkbox" checked style="flex-shrink:0;accent-color:var(--clr-primary);width:16px;height:16px;" />
+          <span class="import-case-row__fap">${escHtml(c.fap)}</span>
+          <span class="import-case-row__nome">${escHtml(c.nome)}</span>`;
+        row.dataset.fap  = c.fap;
+        row.dataset.nome = c.nome;
+        newList.appendChild(row);
+      });
+    }
+
+    newLabel.textContent = `${novos.length} novo${novos.length !== 1 ? "s" : ""}`;
+
+    if (jaExistem.length > 0) {
+      existingSection.hidden = false;
+      existingLabel.textContent = `${jaExistem.length} já existe${jaExistem.length !== 1 ? "m" : ""} no organizador`;
+      jaExistem.forEach((c) => {
+        const row = document.createElement("div");
+        row.className = "import-case-row import-case-row--existing";
+        row.innerHTML = `
+          <span style="width:16px;flex-shrink:0;">—</span>
+          <span class="import-case-row__fap">${escHtml(c.fap)}</span>
+          <span class="import-case-row__nome">${escHtml(c.nome)}</span>`;
+        existingList.appendChild(row);
+      });
+    } else {
+      existingSection.hidden = true;
+    }
+
+    showStep(stepResults);
+  }
+
+  // Back to upload
+  document.getElementById("import-results-back").addEventListener("click", () => showStep(stepUpload));
+
+  // Confirm import
+  confirmBtn.addEventListener("click", async () => {
+    const checked = [...newList.querySelectorAll(".import-case-row input:checked")];
+    if (checked.length === 0) { showToast("Nenhum caso selecionado.", "error"); return; }
+
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Importando…";
+
+    try {
+      const maxOrder = allCases
+        .filter((c) => !c.liberado)
+        .reduce((m, c) => Math.max(m, c.listOrder ?? c.sortOrder ?? 0), 0);
+
+      for (let i = 0; i < checked.length; i++) {
+        const row = checked[i].closest(".import-case-row");
+        await addDoc(collection(db, "casos"), {
+          nome:       row.dataset.nome,
+          fap:        row.dataset.fap,
+          status:     "nao-visto",
+          liberado:   false,
+          resumoLinha: "",
+          resumo:     "",
+          pendenciaDesc: "",
+          listOrder:  maxOrder + (i + 1) * 1000,
+          createdAt:  serverTimestamp(),
+          updatedAt:  serverTimestamp(),
+        });
+      }
+
+      closeModal();
+      showToast(`${checked.length} caso${checked.length !== 1 ? "s" : ""} importado${checked.length !== 1 ? "s" : ""}.`);
+    } catch (err) {
+      showToast("Erro ao importar: " + err.message, "error");
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "Importar selecionados";
+    }
+  });
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+})();
+
 // ─── Export image ────────────────────────────────────────────────────────────
 document.getElementById("export-img-btn").addEventListener("click", () => {
   // Collect visible open cases in current order

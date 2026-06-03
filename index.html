@@ -129,6 +129,7 @@
         <button class="filter-btn" data-filter="outros">🔵 Outros <span class="filter-count" id="cnt-f-outros">—</span></button>
       </div>
       <div style="display:flex;align-items:center;gap:12px;">
+        <button class="btn btn--ghost btn--sm" id="import-print-btn">📸 Importar do print</button>
         <button class="btn btn--ghost btn--sm" id="export-img-btn">📷 Gerar imagem</button>
         <p class="list-toolbar__hint">Arraste as linhas para reordenar</p>
       </div>
@@ -163,6 +164,67 @@
 
   <!-- ── Toast ── -->
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- ── Modal importar do print ── -->
+  <div class="modal-overlay" id="import-modal" hidden role="dialog" aria-modal="true">
+    <div class="modal modal--wide">
+
+      <!-- Step: API key -->
+      <div id="import-step-key">
+        <h2>🔑 Configurar API key</h2>
+        <p>Cole sua Gemini API key (aistudio.google.com). Ela fica salva só no seu navegador.</p>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <input type="password" id="import-apikey-input" placeholder="AIzaSy..." style="flex:1;border:1px solid var(--clr-border);border-radius:6px;padding:8px 12px;font-size:14px;font-family:inherit;" />
+          <button class="btn btn--primary" id="import-apikey-save">Salvar</button>
+        </div>
+        <div class="modal__actions" style="margin-top:16px;">
+          <button class="btn btn--ghost" id="import-key-cancel">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Step: Upload -->
+      <div id="import-step-upload" hidden>
+        <h2>📸 Importar do print</h2>
+        <p>Selecione o print do monitor com os casos.</p>
+        <div class="import-dropzone" id="import-dropzone">
+          <input type="file" id="import-file" accept="image/*" style="display:none;" />
+          <span class="import-dropzone__icon">🖼️</span>
+          <span id="import-dropzone-label">Clique para selecionar imagem</span>
+        </div>
+        <img id="import-preview" hidden style="max-width:100%;max-height:240px;border-radius:6px;margin-top:12px;object-fit:contain;" />
+        <div class="modal__actions" style="margin-top:16px;">
+          <button class="btn btn--ghost btn--sm" id="import-change-key">🔑 Trocar API key</button>
+          <button class="btn btn--ghost" id="import-upload-cancel">Cancelar</button>
+          <button class="btn btn--primary" id="import-analyze-btn" disabled>Analisar imagem</button>
+        </div>
+      </div>
+
+      <!-- Step: Loading -->
+      <div id="import-step-loading" hidden>
+        <h2>🔍 Analisando imagem…</h2>
+        <p style="color:var(--clr-text-muted);margin-top:8px;">A IA está extraindo nomes e FAPs do print.</p>
+        <div class="import-spinner" style="margin-top:24px;"></div>
+      </div>
+
+      <!-- Step: Results -->
+      <div id="import-step-results" hidden>
+        <h2>📋 Casos encontrados</h2>
+        <div id="import-new-section">
+          <p class="import-section-label import-section-label--new" id="import-new-label"></p>
+          <div id="import-new-list"></div>
+        </div>
+        <div id="import-existing-section" hidden style="margin-top:16px;">
+          <p class="import-section-label import-section-label--existing" id="import-existing-label"></p>
+          <div id="import-existing-list"></div>
+        </div>
+        <div class="modal__actions" style="margin-top:20px;">
+          <button class="btn btn--ghost" id="import-results-back">← Voltar</button>
+          <button class="btn btn--primary" id="import-confirm-btn">Importar selecionados</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
 
   <!-- ── Modal exclusão ── -->
   <div class="modal-overlay" id="delete-modal" hidden role="dialog" aria-modal="true">
