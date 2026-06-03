@@ -399,40 +399,157 @@ function flash(row, msg) {
 }
 
 // ─── Export image ────────────────────────────────────────────────────────────
-document.getElementById("export-img-btn").addEventListener("click", async () => {
-  const btn = document.getElementById("export-img-btn");
-  btn.textContent = "⏳ Gerando…";
-  btn.disabled = true;
+document.getElementById("export-img-btn").addEventListener("click", () => {
+  // Collect visible open cases in current order
+  const rows = [...document.querySelectorAll("#case-list .list-row")];
+  const items = rows.map((row) => {
+    const id = row.dataset.id;
+    const c  = allCases.find((x) => x.id === id);
+    return c ?? null;
+  }).filter(Boolean);
 
-  // Elements to hide during capture
-  const hide = [
-    ...document.querySelectorAll("#case-list .badge"),
-    ...document.querySelectorAll("#case-list .list-row__handle"),
-    ...document.querySelectorAll("#case-list .list-row__chevron"),
-    ...document.querySelectorAll("#case-list .list-row__check"),
+  if (items.length === 0) { showToast("Nenhum caso para exportar.", "error"); return; }
+
+  const SCALE  = 2;          // retina
+  const PAD    = 32;         // page margin
+  const ROW_H  = 38;         // row height
+  const HDR_H  = 56;         // header height
+  const FOOT_H = 32;         // footer height
+  const W      = 900;        // canvas width (logical)
+
+  // columns: [label, x, width]
+  const COLS = [
+    { label: "",        x: PAD,       w: 22  },  // check mark
+    { label: "FAP",     x: PAD + 30,  w: 130 },
+    { label: "Paciente",x: PAD + 170, w: 260 },
+    { label: "Resumo",  x: PAD + 440, w: W - PAD - 440 - PAD },
   ];
-  hide.forEach((el) => (el.style.visibility = "hidden"));
 
-  try {
-    const target = document.getElementById("case-list");
-    const canvas = await html2canvas(target, {
-      backgroundColor: "#ffffff",
-      scale: 2,           // retina quality
-      useCORS: true,
-      logging: false,
-    });
+  const H = HDR_H + items.length * ROW_H + FOOT_H + PAD;
 
-    const link = document.createElement("a");
-    const date = new Date().toLocaleDateString("pt-BR").replace(/\//g, "-");
-    link.download = `casos-${date}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  } finally {
-    hide.forEach((el) => (el.style.visibility = ""));
-    btn.textContent = "📷 Gerar imagem";
-    btn.disabled = false;
-  }
+  const canvas  = document.createElement("canvas");
+  canvas.width  = W  * SCALE;
+  canvas.height = H  * SCALE;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(SCALE, SCALE);
+
+  // ── background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  // ── header bar
+  ctx.fillStyle = "#1e40af";
+  ctx.fillRect(0, 0, W, HDR_H);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 16px Inter, system-ui, sans-serif";
+  ctx.fillText("🔬  Organizador de Casos — Patologia", PAD, 24);
+  ctx.font = "13px Inter, system-ui, sans-serif";
+  const dateStr = new Date().toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" });
+  ctx.fillText(dateStr, PAD, 44);
+
+  // ── column headers
+  const HDR_Y = HDR_H + 10;
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 11px Inter, system-ui, sans-serif";
+  COLS.forEach((col) => {
+    if (col.label) ctx.fillText(col.label.toUpperCase(), col.x, HDR_Y);
+  });
+
+  // ── separator line
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD, HDR_H + 20);
+  ctx.lineTo(W - PAD, HDR_H + 20);
+  ctx.stroke();
+
+  // ── rows
+  const STATUS_COLORS = {
+    "a-ser-visto":  "#2563eb",
+    "encaminhado":  "#16a34a",
+    "terceirizado": "#7c3aed",
+    "pendencia":    "#d97706",
+  };
+
+  items.forEach((c, i) => {
+    const y       = HDR_H + 26 + i * ROW_H;
+    const isEven  = i % 2 === 0;
+
+    // zebra
+    ctx.fillStyle = isEven ? "#f8fafc" : "#ffffff";
+    ctx.fillRect(PAD - 8, y - 14, W - (PAD - 8) * 2, ROW_H);
+
+    // status left bar
+    ctx.fillStyle = STATUS_COLORS[c.status] ?? "#94a3b8";
+    ctx.fillRect(PAD - 8, y - 14, 4, ROW_H);
+
+    // check mark
+    if (c.checked) {
+      ctx.fillStyle = "#16a34a";
+      ctx.beginPath();
+      ctx.arc(COLS[0].x + 7, y - 2, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 11px Inter, system-ui, sans-serif";
+      ctx.fillText("✓", COLS[0].x + 3, y + 2);
+    } else {
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.arc(COLS[0].x + 7, y - 2, 8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // FAP
+    ctx.fillStyle = "#2563eb";
+    ctx.font = "bold 12px Inter, system-ui, sans-serif";
+    ctx.fillText(clip(c.fap, 16), COLS[1].x, y + 2);
+
+    // Nome
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "600 13px Inter, system-ui, sans-serif";
+    ctx.fillText(clip(c.nome, 30), COLS[2].x, y + 2);
+
+    // Resumo em uma linha
+    if (c.resumoLinha) {
+      ctx.fillStyle = "#334155";
+      ctx.font = "13px Inter, system-ui, sans-serif";
+      ctx.fillText(clip(c.resumoLinha, 52), COLS[3].x, y + 2);
+    }
+
+    // pendência note
+    if (c.status === "pendencia" && c.pendenciaDesc) {
+      ctx.fillStyle = "#d97706";
+      ctx.font = "italic 11px Inter, system-ui, sans-serif";
+      ctx.fillText("⏳ " + clip(c.pendenciaDesc, 55), COLS[2].x, y + 16);
+    }
+
+    // bottom rule
+    ctx.strokeStyle = "#e2e8f0";
+    ctx.lineWidth   = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(PAD - 8, y + ROW_H - 14);
+    ctx.lineTo(W - PAD + 8, y + ROW_H - 14);
+    ctx.stroke();
+  });
+
+  // ── footer
+  const footY = HDR_H + 26 + items.length * ROW_H + 16;
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "11px Inter, system-ui, sans-serif";
+  ctx.fillText(`${items.length} caso${items.length !== 1 ? "s" : ""} em aberto`, PAD, footY);
+
+  // ── download
+  const link = document.createElement("a");
+  link.download = `casos-${new Date().toLocaleDateString("pt-BR").replace(/\//g, "-")}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
 });
+
+function clip(str, max) {
+  if (!str) return "";
+  return str.length > max ? str.slice(0, max - 1) + "…" : str;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function escHtml(str) {
