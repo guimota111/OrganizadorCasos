@@ -410,22 +410,54 @@ document.getElementById("export-img-btn").addEventListener("click", () => {
 
   if (items.length === 0) { showToast("Nenhum caso para exportar.", "error"); return; }
 
-  const SCALE  = 2;          // retina
-  const PAD    = 32;         // page margin
-  const ROW_H  = 38;         // row height
-  const HDR_H  = 56;         // header height
-  const FOOT_H = 32;         // footer height
-  const W      = 900;        // canvas width (logical)
+  const SCALE  = 2;
+  const PAD    = 32;
+  const ROW_H  = 38;         // minimum row height
+  const LINE_H = 16;         // extra height per additional wrapped line
+  const HDR_H  = 56;
+  const FOOT_H = 32;
+  const W      = 900;
 
-  // columns: [label, x, width]
   const COLS = [
-    { label: "",        x: PAD,       w: 22  },  // check mark
-    { label: "FAP",     x: PAD + 30,  w: 130 },
-    { label: "Paciente",x: PAD + 170, w: 260 },
-    { label: "Resumo",  x: PAD + 440, w: W - PAD - 440 - PAD },
+    { label: "",         x: PAD,       w: 22  },
+    { label: "FAP",      x: PAD + 30,  w: 130 },
+    { label: "Paciente", x: PAD + 170, w: 260 },
+    { label: "Resumo",   x: PAD + 440, w: W - PAD - 440 - PAD },
   ];
 
-  const H = HDR_H + items.length * ROW_H + FOOT_H + PAD;
+  // Measure text wrapping on a temp canvas
+  const tmpCanvas = document.createElement("canvas");
+  const tmpCtx    = tmpCanvas.getContext("2d");
+  tmpCtx.font = "13px Inter, system-ui, sans-serif";
+
+  function wrapText(ctx2, text, maxW) {
+    if (!text) return [];
+    const words = text.split(" ");
+    const lines = [];
+    let line = "";
+    for (const word of words) {
+      const test = line ? line + " " + word : word;
+      if (ctx2.measureText(test).width > maxW && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  // Pre-compute wrapped lines and row heights
+  const rowData = items.map((c) => {
+    tmpCtx.font = "13px Inter, system-ui, sans-serif";
+    const lines  = wrapText(tmpCtx, c.resumoLinha || "", COLS[3].w);
+    const height = Math.max(ROW_H, ROW_H + (lines.length - 1) * LINE_H);
+    return { c, lines, height };
+  });
+
+  const totalRowH = rowData.reduce((s, r) => s + r.height, 0);
+  const H = HDR_H + totalRowH + FOOT_H + PAD;
 
   const canvas  = document.createElement("canvas");
   canvas.width  = W  * SCALE;
@@ -471,17 +503,18 @@ document.getElementById("export-img-btn").addEventListener("click", () => {
     "pendencia":    "#d97706",
   };
 
-  items.forEach((c, i) => {
-    const y       = HDR_H + 26 + i * ROW_H;
-    const isEven  = i % 2 === 0;
+  let curY = HDR_H + 26;
+  rowData.forEach(({ c, lines, height }, i) => {
+    const y      = curY;
+    const isEven = i % 2 === 0;
 
     // zebra
     ctx.fillStyle = isEven ? "#f8fafc" : "#ffffff";
-    ctx.fillRect(PAD - 8, y - 14, W - (PAD - 8) * 2, ROW_H);
+    ctx.fillRect(PAD - 8, y - 14, W - (PAD - 8) * 2, height);
 
     // status left bar
     ctx.fillStyle = STATUS_COLORS[c.status] ?? "#94a3b8";
-    ctx.fillRect(PAD - 8, y - 14, 4, ROW_H);
+    ctx.fillRect(PAD - 8, y - 14, 4, height);
 
     // check mark
     if (c.checked) {
@@ -503,33 +536,37 @@ document.getElementById("export-img-btn").addEventListener("click", () => {
     // FAP
     ctx.fillStyle = "#2563eb";
     ctx.font = "bold 12px Inter, system-ui, sans-serif";
-    ctx.fillText(clip(c.fap, 16), COLS[1].x, y + 2);
+    ctx.fillText(c.fap ?? "", COLS[1].x, y + 2);
 
     // Nome
     ctx.fillStyle = "#0f172a";
     ctx.font = "600 13px Inter, system-ui, sans-serif";
     ctx.fillText(clip(c.nome, 30), COLS[2].x, y + 2);
 
-    // Resumo em uma linha (laranja se pendência)
-    if (c.resumoLinha) {
+    // Resumo em uma linha — wrapped, laranja se pendência
+    if (lines.length > 0) {
       ctx.fillStyle = c.status === "pendencia" ? "#d97706" : "#334155";
       ctx.font = c.status === "pendencia"
         ? "italic 13px Inter, system-ui, sans-serif"
         : "13px Inter, system-ui, sans-serif";
-      ctx.fillText(clip(c.resumoLinha, 52), COLS[3].x, y + 2);
+      lines.forEach((line, li) => {
+        ctx.fillText(line, COLS[3].x, y + 2 + li * LINE_H);
+      });
     }
 
     // bottom rule
     ctx.strokeStyle = "#e2e8f0";
     ctx.lineWidth   = 0.5;
     ctx.beginPath();
-    ctx.moveTo(PAD - 8, y + ROW_H - 14);
-    ctx.lineTo(W - PAD + 8, y + ROW_H - 14);
+    ctx.moveTo(PAD - 8, y + height - 14);
+    ctx.lineTo(W - PAD + 8, y + height - 14);
     ctx.stroke();
+
+    curY += height;
   });
 
   // ── footer
-  const footY = HDR_H + 26 + items.length * ROW_H + 16;
+  const footY = curY + 16;
   ctx.fillStyle = "#94a3b8";
   ctx.font = "11px Inter, system-ui, sans-serif";
   ctx.fillText(`${items.length} caso${items.length !== 1 ? "s" : ""} em aberto`, PAD, footY);
