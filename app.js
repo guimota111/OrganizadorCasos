@@ -309,6 +309,7 @@ function buildReleasedRow(c) {
       ${c.resumo ? `<p class="list-row__resumo-detail">${escHtml(c.resumo)}</p>` : ""}
       ${c.notasPreceptor ? `<div><strong style="font-size:12px;">Anotações:</strong><p style="font-size:13px;margin-top:4px;">${escHtml(c.notasPreceptor)}</p></div>` : ""}
       <div class="list-row__detail-actions" style="margin-top:10px;">
+        <button class="btn btn--ghost btn--sm" data-action="reabrir">↩ Reabrir caso</button>
         <button class="btn btn--danger btn--sm" data-action="excluir" data-nome="${escHtml(c.nome)}">Excluir</button>
       </div>
     </div>`;
@@ -334,7 +335,10 @@ function buildReleasedRow(c) {
 async function handleReleasedRowAction(e, c) {
   e.stopPropagation();
   const action = e.currentTarget.dataset.action;
-  if (action === "excluir") {
+  if (action === "reabrir") {
+    await updateDoc(doc(db, "casos", c.id), { liberado: false, updatedAt: serverTimestamp() });
+    showToast("Caso reaberto.");
+  } else if (action === "excluir") {
     pendingDeleteId = c.id;
     deleteModalMsg.textContent = `Excluir o caso de "${e.currentTarget.dataset.nome}"? Esta ação não pode ser desfeita.`;
     deleteModal.hidden = false;

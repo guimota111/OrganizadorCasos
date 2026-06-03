@@ -105,9 +105,7 @@
 }
 .list-row__check:hover { border-color: #86efac; color: #86efac; }
 .list-row--checked .list-row__check { background: #16a34a; border-color: #16a34a; color: #fff; }
-.list-row--checked { background: #f0fdf4 !important; }
-.list-row--checked:hover { background: #dcfce7 !important; }
-.list-row--checked .list-row__nome { color: var(--clr-text-muted); }
+.list-row--checked .list-row__nome { text-decoration: line-through; color: var(--clr-text-muted); }
 
 .list-row__handle {
   font-size: 16px;
