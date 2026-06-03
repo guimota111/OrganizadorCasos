@@ -54,6 +54,7 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const nome        = document.getElementById("nome").value.trim();
   const fap         = document.getElementById("fap").value.trim();
+  const resumoLinha = document.getElementById("resumo-linha").value.trim();
   const resumo      = document.getElementById("resumo").value.trim();
   const status      = document.querySelector('input[name="status"]:checked').value;
   const pendenciaDesc = status === "pendencia"
@@ -61,7 +62,7 @@ form.addEventListener("submit", async (e) => {
 
   if (!nome || !fap) { showToast("Preencha nome e FAP.", "error"); return; }
 
-  const payload = { nome, fap, resumo, status, pendenciaDesc, updatedAt: serverTimestamp() };
+  const payload = { nome, fap, resumoLinha, resumo, status, pendenciaDesc, updatedAt: serverTimestamp() };
 
   try {
     if (editingId) {
@@ -168,7 +169,10 @@ function buildRow(c) {
     <div class="list-row__handle" title="Arrastar para reordenar">⠿</div>
     <button class="list-row__check" data-action="toggle-check" title="Marcar como checado">✓</button>
     <div class="list-row__fap">${escHtml(c.fap)}</div>
-    <div class="list-row__main"><div class="list-row__nome">${escHtml(c.nome)}</div></div>
+    <div class="list-row__main">
+      <div class="list-row__nome">${escHtml(c.nome)}</div>
+      ${c.resumoLinha ? `<div class="list-row__resumo-linha">${escHtml(c.resumoLinha)}</div>` : ""}
+    </div>
     ${badge}
     <span class="list-row__chevron" aria-hidden="true">▾</span>
     <div class="list-row__detail" hidden>
@@ -237,9 +241,10 @@ async function handleRowAction(e, c, row) {
     editingId = c.id;
     formTitle.textContent = "Editar Caso";
     cancelEditBtn.hidden  = false;
-    document.getElementById("nome").value   = c.nome;
-    document.getElementById("fap").value    = c.fap;
-    document.getElementById("resumo").value = c.resumo || "";
+    document.getElementById("nome").value          = c.nome;
+    document.getElementById("fap").value           = c.fap;
+    document.getElementById("resumo-linha").value  = c.resumoLinha || "";
+    document.getElementById("resumo").value        = c.resumo || "";
     document.querySelector(`input[name="status"][value="${c.status}"]`).checked = true;
     pendenciaGroup.hidden = c.status !== "pendencia";
     document.getElementById("pendencia-desc").value = c.pendenciaDesc || "";
