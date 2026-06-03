@@ -100,11 +100,18 @@ function cancelEdit() {
 
 // ─── Firestore listener (starts only after auth is ready) ────────────────────
 onAuthStateChanged(auth, (user) => {
-  if (!user) return;
-  onSnapshot(query(collection(db, "casos"), orderBy("createdAt", "desc")), (snap) => {
-    allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    render();
-  });
+  if (!user) {
+    showToast("Erro de autenticação — recarregue a página.", "error");
+    return;
+  }
+  onSnapshot(
+    query(collection(db, "casos"), orderBy("createdAt", "desc")),
+    (snap) => {
+      allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      render();
+    },
+    (err) => showToast("Erro ao carregar casos: " + err.message, "error")
+  );
 });
 
 // ─── Render ───────────────────────────────────────────────────────────────────
