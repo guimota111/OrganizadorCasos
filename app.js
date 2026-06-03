@@ -555,7 +555,9 @@ Se não encontrar casos, retorne [].`;
       const text = data?.content?.[0]?.text ?? "[]";
       const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(jsonStr);
-      const extracted = parsed.filter((c) => /^\d{12}$/.test((c.fap ?? "").trim()));
+      const extracted = parsed
+        .map((c) => ({ ...c, fap: (c.fap ?? "").trim().replace(/\./g, "") }))
+        .filter((c) => /^\d{12}$/.test(c.fap));
 
       showResults(extracted);
     } catch (err) {
@@ -565,7 +567,7 @@ Se não encontrar casos, retorne [].`;
   });
 
   function showResults(extracted) {
-    const existingFaps = new Set(allCases.map((c) => (c.fap ?? "").trim().toUpperCase()));
+    const existingFaps = new Set(allCases.map((c) => (c.fap ?? "").trim().replace(/\./g, "").toUpperCase()));
     const novos    = extracted.filter((c) => !existingFaps.has((c.fap ?? "").trim().toUpperCase()));
     const jaExistem = extracted.filter((c) =>  existingFaps.has((c.fap ?? "").trim().toUpperCase()));
 
