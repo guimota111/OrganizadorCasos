@@ -555,7 +555,11 @@ body {
 .modal__actions { display: flex; gap: 10px; justify-content: flex-end; }
 
 /* ── Import modal ───────────────────────────────────────────────────────────── */
-.modal--wide { max-width: 560px; }
+.modal--wide {
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
 
 .import-dropzone {
   margin-top: 12px;
