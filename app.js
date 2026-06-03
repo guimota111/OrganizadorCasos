@@ -566,10 +566,14 @@ Se não encontrar casos, retorne [].`;
     }
   });
 
+  function normFap(fap) {
+    return (fap ?? "").trim().replace(/\./g, "").toUpperCase();
+  }
+
   function showResults(extracted) {
-    const existingFaps = new Set(allCases.map((c) => (c.fap ?? "").trim().replace(/\./g, "").toUpperCase()));
-    const novos    = extracted.filter((c) => !existingFaps.has((c.fap ?? "").trim().toUpperCase()));
-    const jaExistem = extracted.filter((c) =>  existingFaps.has((c.fap ?? "").trim().toUpperCase()));
+    const existingFaps = new Set(allCases.map((c) => normFap(c.fap)));
+    const novos     = extracted.filter((c) => !existingFaps.has(normFap(c.fap)));
+    const jaExistem = extracted.filter((c) =>  existingFaps.has(normFap(c.fap)));
 
     newList.innerHTML = "";
     existingList.innerHTML = "";
