@@ -119,7 +119,10 @@
         <button class="filter-btn" data-filter="terceirizado">🔀 Terceirizado <span class="filter-count" id="cnt-f-terceirizado">—</span></button>
         <button class="filter-btn" data-filter="pendencia">⏳ Pendência <span class="filter-count" id="cnt-f-pendencia">—</span></button>
       </div>
-      <p class="list-toolbar__hint">Arraste as linhas para reordenar</p>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="btn btn--ghost btn--sm" id="export-img-btn">📷 Gerar imagem</button>
+        <p class="list-toolbar__hint">Arraste as linhas para reordenar</p>
+      </div>
     </div>
 
     <div class="list-surface">
@@ -164,6 +167,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

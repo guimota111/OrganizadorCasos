@@ -398,6 +398,42 @@ function flash(row, msg) {
   setTimeout(() => el.remove(), 1800);
 }
 
+// ─── Export image ────────────────────────────────────────────────────────────
+document.getElementById("export-img-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("export-img-btn");
+  btn.textContent = "⏳ Gerando…";
+  btn.disabled = true;
+
+  // Elements to hide during capture
+  const hide = [
+    ...document.querySelectorAll("#case-list .badge"),
+    ...document.querySelectorAll("#case-list .list-row__handle"),
+    ...document.querySelectorAll("#case-list .list-row__chevron"),
+    ...document.querySelectorAll("#case-list .list-row__check"),
+  ];
+  hide.forEach((el) => (el.style.visibility = "hidden"));
+
+  try {
+    const target = document.getElementById("case-list");
+    const canvas = await html2canvas(target, {
+      backgroundColor: "#ffffff",
+      scale: 2,           // retina quality
+      useCORS: true,
+      logging: false,
+    });
+
+    const link = document.createElement("a");
+    const date = new Date().toLocaleDateString("pt-BR").replace(/\//g, "-");
+    link.download = `casos-${date}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  } finally {
+    hide.forEach((el) => (el.style.visibility = ""));
+    btn.textContent = "📷 Gerar imagem";
+    btn.disabled = false;
+  }
+});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function escHtml(str) {
   return String(str)
