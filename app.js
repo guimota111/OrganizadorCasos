@@ -1,9 +1,10 @@
-import { db } from "./firebase-config.js";
+import { db, auth } from "./firebase-config.js";
 import {
   collection, addDoc, updateDoc, deleteDoc,
   doc, onSnapshot, query, orderBy,
   serverTimestamp, writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let allCases     = [];
@@ -97,10 +98,13 @@ function cancelEdit() {
   toggleSection(formBody, formToggle, false);
 }
 
-// ─── Firestore listener ───────────────────────────────────────────────────────
-onSnapshot(query(collection(db, "casos"), orderBy("createdAt", "desc")), (snap) => {
-  allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  render();
+// ─── Firestore listener (starts only after auth is ready) ────────────────────
+onAuthStateChanged(auth, (user) => {
+  if (!user) return;
+  onSnapshot(query(collection(db, "casos"), orderBy("createdAt", "desc")), (snap) => {
+    allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    render();
+  });
 });
 
 // ─── Render ───────────────────────────────────────────────────────────────────
