@@ -229,6 +229,7 @@ function buildRow(c) {
       ${c.resumoLinha ? `<div class="list-row__resumo-linha">${escHtml(c.resumoLinha)}</div>` : ""}
     </div>
     <select class="status-select status-select--${c.status}" data-action="change-status">${selectOptions}</select>
+    ${c.checked && c.checkedAt ? `<span class="list-row__checked-stamp">Visto em ${fmtStamp(c.checkedAt)}</span>` : ""}
     <span class="list-row__chevron" aria-hidden="true">▾</span>
     <div class="list-row__detail" hidden>
       ${c.resumo ? `<p class="list-row__resumo-detail">${escHtml(c.resumo)}</p>` : ""}
@@ -290,7 +291,11 @@ async function handleRowAction(e, c, row) {
   const action = e.currentTarget.dataset.action;
 
   if (action === "toggle-check") {
-    await updateDoc(doc(db, "casos", c.id), { checked: !c.checked });
+    const nowChecked = !c.checked;
+    await updateDoc(doc(db, "casos", c.id), {
+      checked: nowChecked,
+      checkedAt: nowChecked ? serverTimestamp() : null,
+    });
 
   } else if (action === "save-notes") {
     const val = row.querySelector("textarea").value.trim();
@@ -903,6 +908,14 @@ function clip(str, max) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function fmtStamp(ts) {
+  if (!ts) return "";
+  const d = new Date(ts.seconds * 1000);
+  const hm = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const dm = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  return `${hm} ${dm}`;
+}
+
 function escHtml(str) {
   return String(str)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;")
