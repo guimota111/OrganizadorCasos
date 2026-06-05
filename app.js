@@ -232,22 +232,40 @@ function buildRow(c) {
     ${c.checked && c.checkedAt ? `<span class="list-row__checked-stamp">Visto em ${fmtStamp(c.checkedAt)}</span>` : ""}
     <span class="list-row__chevron" aria-hidden="true">▾</span>
     <div class="list-row__detail" hidden>
-      ${c.resumo ? `<p class="list-row__resumo-detail">${escHtml(c.resumo)}</p>` : ""}
-      ${c.status === "pendencia" && c.pendenciaDesc
-        ? `<div class="list-row__pendencia"><strong>Pendência:</strong> ${escHtml(c.pendenciaDesc)}</div>` : ""}
-      <label class="list-row__notes-label">Anotações do preceptor${c.notasPreceptor ? ' <span class="notes-dot"></span>' : ""}</label>
-      <textarea placeholder="Anote aqui os comentários do preceptor...">${c.notasPreceptor ? escHtml(c.notasPreceptor) : ""}</textarea>
-      <div class="list-row__detail-actions">
-        <button class="btn btn--primary btn--sm" data-action="save-notes">Salvar anotações</button>
-        <button class="btn btn--ghost btn--sm" data-action="edit-case">Editar caso</button>
-        <button class="btn btn--success btn--sm" data-action="liberar">Liberar caso</button>
-        <button class="btn btn--warning btn--sm" data-action="add-pendencia">⏳ Adicionar pendência</button>
-        <button class="btn btn--danger btn--sm" data-action="excluir" data-nome="${escHtml(c.nome)}">Excluir</button>
-      </div>
-      <div class="list-row__pendencia-input" hidden>
-        <input type="text" class="pendencia-text" placeholder="Descreva a pendência…" />
-        <button class="btn btn--warning btn--sm" data-action="save-pendencia">Salvar</button>
-        <button class="btn btn--ghost btn--sm" data-action="cancel-pendencia">Cancelar</button>
+      <div class="inline-edit">
+        <div class="inline-edit__row">
+          <div class="inline-edit__field">
+            <label>Nome do paciente</label>
+            <input type="text" class="ie-nome" value="${escHtml(c.nome)}" />
+          </div>
+          <div class="inline-edit__field">
+            <label>FAP</label>
+            <input type="text" class="ie-fap" value="${escHtml(c.fap)}" />
+          </div>
+        </div>
+        <div class="inline-edit__field">
+          <label>Resumo em uma linha</label>
+          <input type="text" class="ie-resumo-linha" value="${escHtml(c.resumoLinha || "")}" placeholder="Breve descrição do caso…" />
+        </div>
+        <div class="inline-edit__field">
+          <label>Resumo clínico</label>
+          <textarea class="ie-resumo" rows="2" placeholder="Descrição clínica completa…">${escHtml(c.resumo || "")}</textarea>
+        </div>
+        ${c.status === "pendencia" ? `
+        <div class="inline-edit__field">
+          <label>Descrição da pendência</label>
+          <input type="text" class="ie-pendencia" value="${escHtml(c.pendenciaDesc || "")}" placeholder="Descreva a pendência…" />
+        </div>` : ""}
+        <div class="inline-edit__field">
+          <label>Anotações do preceptor${c.notasPreceptor ? ' <span class="notes-dot"></span>' : ""}</label>
+          <textarea class="ie-notas" rows="2" placeholder="Anote os comentários do preceptor…">${escHtml(c.notasPreceptor || "")}</textarea>
+        </div>
+        <div class="list-row__detail-actions">
+          <button class="btn btn--primary btn--sm" data-action="save-inline">Salvar alterações</button>
+          <button class="btn btn--success btn--sm" data-action="liberar">Liberar caso</button>
+          <button class="btn btn--warning btn--sm" data-action="add-pendencia">⏳ Adicionar pendência</button>
+          <button class="btn btn--danger btn--sm" data-action="excluir" data-nome="${escHtml(c.nome)}">Excluir</button>
+        </div>
       </div>
     </div>`;
 
@@ -297,42 +315,25 @@ async function handleRowAction(e, c, row) {
       checkedAt: nowChecked ? serverTimestamp() : null,
     });
 
-  } else if (action === "save-notes") {
-    const val = row.querySelector("textarea").value.trim();
-    await updateDoc(doc(db, "casos", c.id), { notasPreceptor: val, updatedAt: serverTimestamp() });
+  } else if (action === "save-inline") {
+    const nome        = row.querySelector(".ie-nome").value.trim();
+    const fap         = row.querySelector(".ie-fap").value.trim();
+    const resumoLinha = row.querySelector(".ie-resumo-linha").value.trim();
+    const resumo      = row.querySelector(".ie-resumo").value.trim();
+    const notasPreceptor = row.querySelector(".ie-notas").value.trim();
+    const pendenciaEl = row.querySelector(".ie-pendencia");
+    const pendenciaDesc = pendenciaEl ? pendenciaEl.value.trim() : c.pendenciaDesc || "";
+    if (!nome || !fap) { showToast("Nome e FAP são obrigatórios.", "error"); return; }
+    await updateDoc(doc(db, "casos", c.id), {
+      nome, fap, resumoLinha, resumo, notasPreceptor, pendenciaDesc, updatedAt: serverTimestamp(),
+    });
     flash(row, "✅ Salvo");
 
   } else if (action === "liberar") {
     await updateDoc(doc(db, "casos", c.id), { liberado: true, checked: false, updatedAt: serverTimestamp() });
 
-  } else if (action === "edit-case") {
-    editingId = c.id;
-    formTitle.textContent = "Editar Caso";
-    cancelEditBtn.hidden  = false;
-    document.getElementById("nome").value          = c.nome;
-    document.getElementById("fap").value           = c.fap;
-    document.getElementById("resumo-linha").value  = c.resumoLinha || "";
-    document.getElementById("resumo").value        = c.resumo || "";
-    document.querySelector(`input[name="status"][value="${c.status}"]`).checked = true;
-    pendenciaGroup.hidden = c.status !== "pendencia";
-    document.getElementById("pendencia-desc").value = c.pendenciaDesc || "";
-    toggleSection(formBody, formToggle, true);
-    document.getElementById("form-section").scrollIntoView({ behavior: "smooth" });
-
   } else if (action === "add-pendencia") {
-    const box = row.querySelector(".list-row__pendencia-input");
-    box.hidden = false;
-    box.querySelector(".pendencia-text").focus();
-
-  } else if (action === "cancel-pendencia") {
-    const box = row.querySelector(".list-row__pendencia-input");
-    box.hidden = true;
-    box.querySelector(".pendencia-text").value = "";
-
-  } else if (action === "save-pendencia") {
-    const box  = row.querySelector(".list-row__pendencia-input");
-    const desc = box.querySelector(".pendencia-text").value.trim();
-    await updateDoc(doc(db, "casos", c.id), { status: "pendencia", pendenciaDesc: desc, updatedAt: serverTimestamp() });
+    await updateDoc(doc(db, "casos", c.id), { status: "pendencia", updatedAt: serverTimestamp() });
 
   } else if (action === "excluir") {
     pendingDeleteId = c.id;
