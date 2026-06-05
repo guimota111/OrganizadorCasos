@@ -159,7 +159,7 @@ function render() {
     .sort((a, b) => (b.updatedAt?.seconds ?? 0) - (a.updatedAt?.seconds ?? 0));
 
   // counters
-  document.getElementById("cnt-total").textContent    = allCases.length;
+  document.getElementById("cnt-total").textContent    = open.length;
   document.getElementById("cnt-nao-visto").textContent= open.filter((c) => c.status === "nao-visto").length;
   document.getElementById("cnt-visto").textContent    = open.filter((c) => c.status === "visto").length;
   document.getElementById("cnt-laudado").textContent  = open.filter((c) => c.status === "laudado").length;
