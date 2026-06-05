@@ -203,7 +203,7 @@ document.querySelectorAll(".filter-btn").forEach((btn) => {
 
 const STATUS_OPTIONS = [
   { value: "nao-visto", label: "⬜ Não visto" },
-  { value: "visto",     label: "🟢 Visto" },
+  { value: "visto",     label: "🟡 Visto mas não laudado" },
   { value: "laudado",   label: "✅ Laudado" },
   { value: "pendencia", label: "⏳ Pendência" },
   { value: "outros",    label: "🔵 Outros" },

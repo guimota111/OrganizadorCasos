@@ -59,7 +59,7 @@
       </div>
       <div class="stat-card stat-card--visto">
         <div class="stat-card__value" id="cnt-visto">—</div>
-        <div class="stat-card__label">Vistos</div>
+        <div class="stat-card__label">Não laudados</div>
       </div>
       <div class="stat-card stat-card--laudado">
         <div class="stat-card__value" id="cnt-laudado">—</div>
@@ -113,7 +113,7 @@
                 </label>
                 <label class="radio-label">
                   <input type="radio" name="status" value="visto" />
-                  🟢 Visto — analisado, aguardando laudo
+                  🟡 Visto mas não laudado — analisado, laudo pendente
                 </label>
                 <label class="radio-label">
                   <input type="radio" name="status" value="laudado" />
@@ -147,7 +147,7 @@
       <div class="list-toolbar__filters">
         <button class="filter-btn active" data-filter="all">Todos <span class="filter-count" id="cnt-all">—</span></button>
         <button class="filter-btn" data-filter="nao-visto">⬜ Não visto <span class="filter-count" id="cnt-f-nao-visto">—</span></button>
-        <button class="filter-btn" data-filter="visto">🟢 Visto <span class="filter-count" id="cnt-f-visto">—</span></button>
+        <button class="filter-btn" data-filter="visto">🟡 Visto mas não laudado <span class="filter-count" id="cnt-f-visto">—</span></button>
         <button class="filter-btn" data-filter="laudado">✅ Laudado <span class="filter-count" id="cnt-f-laudado">—</span></button>
         <button class="filter-btn" data-filter="pendencia">⏳ Pendência <span class="filter-count" id="cnt-f-pendencia">—</span></button>
         <button class="filter-btn" data-filter="outros">🔵 Outros <span class="filter-count" id="cnt-f-outros">—</span></button>
