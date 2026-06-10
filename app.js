@@ -1,10 +1,16 @@
 import { db, auth } from "./firebase-config.js";
 import {
   collection, addDoc, updateDoc, deleteDoc,
-  doc, onSnapshot, query, orderBy,
+  doc, onSnapshot, query, orderBy, getDocs,
   serverTimestamp, writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+// ─── Multi-user data scoping ──────────────────────────────────────────────────
+// Each pathologist's cases live under users/{uid}/casos
+let currentUid = null;
+const casesCol = () => collection(db, "users", currentUid, "casos");
+const caseDoc  = (id) => doc(db, "users", currentUid, "casos", id);
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let allCases     = [];
@@ -67,7 +73,7 @@ form.addEventListener("submit", async (e) => {
 
   try {
     if (editingId) {
-      await updateDoc(doc(db, "casos", editingId), payload);
+      await updateDoc(caseDoc(editingId), payload);
       showToast("Caso atualizado.");
       cancelEdit();
     } else {
@@ -76,7 +82,7 @@ form.addEventListener("submit", async (e) => {
       payload.createdAt = serverTimestamp();
       payload.liberado  = false;
       payload.listOrder = maxOrder + 1000;
-      await addDoc(collection(db, "casos"), payload);
+      await addDoc(casesCol(), payload);
       showToast("Caso cadastrado.");
     }
     form.reset();
@@ -127,15 +133,19 @@ document.getElementById("logout-btn").addEventListener("click", () => signOut(au
 
 let unsubscribeSnapshot = null;
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (user) {
+    currentUid = user.uid;
     loginScreen.hidden  = true;
     mainHeader.hidden   = false;
     mainContent.hidden  = false;
     loginBtn.disabled   = false;
     loginBtn.textContent = "Entrar";
+    const userEmailEl = document.getElementById("user-email");
+    if (userEmailEl) userEmailEl.textContent = user.email ?? "";
+    await migrateLegacyCases();
     unsubscribeSnapshot = onSnapshot(
-      query(collection(db, "casos"), orderBy("createdAt", "desc")),
+      query(casesCol(), orderBy("createdAt", "desc")),
       (snap) => {
         allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         render();
@@ -143,6 +153,7 @@ onAuthStateChanged(auth, (user) => {
       (err) => showToast("Erro ao carregar casos: " + err.message, "error")
     );
   } else {
+    currentUid = null;
     loginScreen.hidden  = false;
     mainHeader.hidden   = true;
     mainContent.hidden  = true;
@@ -150,6 +161,24 @@ onAuthStateChanged(auth, (user) => {
     allCases = [];
   }
 });
+
+// One-time migration: copy docs from the legacy root "casos" collection into
+// users/{uid}/casos. Runs silently; skips if the user already has data or the
+// legacy collection is unreadable (e.g. rules already lock it down).
+async function migrateLegacyCases() {
+  try {
+    const mine = await getDocs(casesCol());
+    if (!mine.empty) return;
+    const legacy = await getDocs(collection(db, "casos"));
+    if (legacy.empty) return;
+    const batch = writeBatch(db);
+    legacy.docs.forEach((d) => batch.set(caseDoc(d.id), d.data()));
+    await batch.commit();
+    showToast(`${legacy.size} casos migrados para sua conta.`);
+  } catch {
+    /* legacy collection inaccessible — nothing to migrate */
+  }
+}
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function render() {
@@ -290,7 +319,7 @@ function buildRow(c) {
   row.querySelector(".status-select").addEventListener("change", async (e) => {
     e.stopPropagation();
     const newStatus = e.target.value;
-    await updateDoc(doc(db, "casos", c.id), { status: newStatus, updatedAt: serverTimestamp() });
+    await updateDoc(caseDoc(c.id), { status: newStatus, updatedAt: serverTimestamp() });
   });
   return row;
 }
@@ -310,7 +339,7 @@ async function handleRowAction(e, c, row) {
 
   if (action === "toggle-check") {
     const nowChecked = !c.checked;
-    await updateDoc(doc(db, "casos", c.id), {
+    await updateDoc(caseDoc(c.id), {
       checked: nowChecked,
       checkedAt: nowChecked ? serverTimestamp() : null,
     });
@@ -324,16 +353,16 @@ async function handleRowAction(e, c, row) {
     const pendenciaEl = row.querySelector(".ie-pendencia");
     const pendenciaDesc = pendenciaEl ? pendenciaEl.value.trim() : c.pendenciaDesc || "";
     if (!nome || !fap) { showToast("Nome e FAP são obrigatórios.", "error"); return; }
-    await updateDoc(doc(db, "casos", c.id), {
+    await updateDoc(caseDoc(c.id), {
       nome, fap, resumoLinha, resumo, notasPreceptor, pendenciaDesc, updatedAt: serverTimestamp(),
     });
     flash(row, "✅ Salvo");
 
   } else if (action === "liberar") {
-    await updateDoc(doc(db, "casos", c.id), { liberado: true, checked: false, updatedAt: serverTimestamp() });
+    await updateDoc(caseDoc(c.id), { liberado: true, checked: false, updatedAt: serverTimestamp() });
 
   } else if (action === "add-pendencia") {
-    await updateDoc(doc(db, "casos", c.id), { status: "pendencia", updatedAt: serverTimestamp() });
+    await updateDoc(caseDoc(c.id), { status: "pendencia", updatedAt: serverTimestamp() });
 
   } else if (action === "excluir") {
     pendingDeleteId = c.id;
@@ -390,7 +419,7 @@ async function handleReleasedRowAction(e, c) {
   e.stopPropagation();
   const action = e.currentTarget.dataset.action;
   if (action === "reabrir") {
-    await updateDoc(doc(db, "casos", c.id), { liberado: false, updatedAt: serverTimestamp() });
+    await updateDoc(caseDoc(c.id), { liberado: false, updatedAt: serverTimestamp() });
     showToast("Caso reaberto.");
   } else if (action === "excluir") {
     pendingDeleteId = c.id;
@@ -427,7 +456,7 @@ function initDrag(container) {
       ids.splice(srcIdx, 1);
       ids.splice(tgtIdx, 0, dragSrcId);
       const batch = writeBatch(db);
-      ids.forEach((id, i) => batch.update(doc(db, "casos", id), { listOrder: (i + 1) * 1000 }));
+      ids.forEach((id, i) => batch.update(caseDoc(id), { listOrder: (i + 1) * 1000 }));
       await batch.commit();
     });
     row.addEventListener("dragend", () => {
@@ -442,7 +471,7 @@ function initDrag(container) {
 confirmDelBtn.addEventListener("click", async () => {
   if (!pendingDeleteId) return;
   try {
-    await deleteDoc(doc(db, "casos", pendingDeleteId));
+    await deleteDoc(caseDoc(pendingDeleteId));
     showToast("Caso excluído.");
   } catch (err) {
     showToast("Erro ao excluir: " + err.message, "error");
@@ -689,7 +718,7 @@ Se não encontrar casos, retorne [].`;
 
       for (let i = 0; i < checked.length; i++) {
         const row = checked[i].closest(".import-case-row");
-        await addDoc(collection(db, "casos"), {
+        await addDoc(casesCol(), {
           nome:       row.dataset.nome,
           fap:        row.dataset.fap,
           status:     "nao-visto",
