@@ -723,9 +723,32 @@ body {
   .stats-bar { grid-template-columns: repeat(4, 1fr); }
 }
 @media (max-width: 600px) {
-  .stats-bar { grid-template-columns: repeat(2, 1fr); }
+  .page-wrapper { padding: 0 12px 48px; }
+
+  /* Compact header */
+  .site-header { padding: 12px 14px; }
+  .site-header__icon { font-size: 20px; padding: 6px; }
+  .site-header h1 { font-size: 15px; }
+  .site-header__sub { display: none; }
+  .user-chip { max-width: 110px; font-size: 11px; padding: 4px 10px; }
+
+  /* Compact stat cards, 3 per row */
+  .stats-bar { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+  .stat-card { padding: 12px 8px 10px; }
+  .stat-card__value { font-size: 20px; }
+  .stat-card__label { font-size: 10px; letter-spacing: .02em; }
+
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .form-group--full { grid-column: 1; }
   .section { padding: 16px; }
   .tab-btn { padding: 10px 12px; font-size: 13px; }
+
+  /* Modals fit small screens */
+  .modal { padding: 20px 16px 16px; }
+  .modal__actions { flex-wrap: wrap; }
+  .modal__actions .btn { flex: 1 1 auto; }
+
+  /* Bigger touch targets */
+  .btn--sm { padding: 8px 14px; }
+  .list-row__check { width: 30px; height: 30px; }
 }
