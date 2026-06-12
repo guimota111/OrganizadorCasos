@@ -923,24 +923,26 @@ document.getElementById("export-img-btn").addEventListener("click", () => {
 
   // ── rows
   const STATUS_COLORS = {
-    "nao-visto": "#94a3b8",
-    "visto":     "#86efac",
-    "laudado":   "#16a34a",
-    "pendencia": "#d97706",
-    "outros":    "#93c5fd",
+    "nao-visto": { bar: "#94a3b8", bg: null },
+    "visto":     { bar: "#fbbf24", bg: "#fef9c3" },
+    "laudado":   { bar: "#16a34a", bg: "#bbf7d0" },
+    "parcial":   { bar: "#f97316", bg: "#fed7aa" },
+    "pendencia": { bar: "#dc2626", bg: "#fee2e2" },
+    "outros":    { bar: "#93c5fd", bg: "#dbeafe" },
   };
 
   let curY = HDR_H + 26;
   rowData.forEach(({ c, lines, height }, i) => {
     const y      = curY;
     const isEven = i % 2 === 0;
+    const sc     = STATUS_COLORS[c.status] ?? STATUS_COLORS["nao-visto"];
 
-    // zebra
-    ctx.fillStyle = isEven ? "#f8fafc" : "#ffffff";
+    // row background — use status color if defined, else zebra
+    ctx.fillStyle = sc.bg ?? (isEven ? "#f8fafc" : "#ffffff");
     ctx.fillRect(PAD - 8, y - 14, W - (PAD - 8) * 2, height);
 
     // status left bar
-    ctx.fillStyle = STATUS_COLORS[c.status] ?? "#94a3b8";
+    ctx.fillStyle = sc.bar;
     ctx.fillRect(PAD - 8, y - 14, 4, height);
 
     // check mark
@@ -970,9 +972,9 @@ document.getElementById("export-img-btn").addEventListener("click", () => {
     ctx.font = "600 13px Inter, system-ui, sans-serif";
     ctx.fillText(clip(c.nome, 30), COLS[2].x, y + 2);
 
-    // Resumo em uma linha — wrapped, laranja se pendência
+    // Resumo em uma linha — wrapped, vermelho se pendência
     if (lines.length > 0) {
-      ctx.fillStyle = c.status === "pendencia" ? "#d97706" : "#334155";
+      ctx.fillStyle = c.status === "pendencia" ? "#991b1b" : "#334155";
       ctx.font = c.status === "pendencia"
         ? "italic 13px Inter, system-ui, sans-serif"
         : "13px Inter, system-ui, sans-serif";
