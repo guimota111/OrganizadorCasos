@@ -338,16 +338,16 @@
 
 /* status left border + row background */
 .list-row--nao-visto { border-left: 3px solid #cbd5e1; }
-.list-row--visto     { border-left: 3px solid #86efac; background: #f0fdf4; }
-.list-row--visto:hover { background: #dcfce7 !important; }
-.list-row--laudado   { border-left: 3px solid #16a34a; background: #dcfce7; }
-.list-row--laudado:hover { background: #bbf7d0 !important; }
-.list-row--parcial   { border-left: 3px solid #f97316; background: #fff7ed; }
-.list-row--parcial:hover { background: #ffedd5 !important; }
-.list-row--pendencia { border-left: 3px solid #fcd34d; background: #fefce8; }
-.list-row--pendencia:hover { background: #fef9c3 !important; }
-.list-row--outros    { border-left: 3px solid #93c5fd; background: #eff6ff; }
-.list-row--outros:hover { background: #dbeafe !important; }
+.list-row--visto     { border-left: 3px solid #fbbf24; background: #fef9c3; }
+.list-row--visto:hover { background: #fef08a !important; }
+.list-row--laudado   { border-left: 3px solid #16a34a; background: #bbf7d0; }
+.list-row--laudado:hover { background: #86efac !important; }
+.list-row--parcial   { border-left: 3px solid #f97316; background: #fed7aa; }
+.list-row--parcial:hover { background: #fdba74 !important; }
+.list-row--pendencia { border-left: 3px solid #dc2626; background: #fee2e2; }
+.list-row--pendencia:hover { background: #fecaca !important; }
+.list-row--outros    { border-left: 3px solid #93c5fd; background: #dbeafe; }
+.list-row--outros:hover { background: #bfdbfe !important; }
 
 /* ── Checked stamp ───────────────────────────────────────────────────────── */
 .list-row__checked-stamp {
@@ -378,12 +378,12 @@
   transition: border-color .15s;
 }
 .status-select:focus { outline: none; border-color: var(--clr-primary); }
-.status-select--nao-visto { background: #f8fafc; color: #475569; border-color: #cbd5e1; }
-.status-select--visto     { background: #f0fdf4; color: #166534; border-color: #86efac; }
-.status-select--laudado   { background: #dcfce7; color: #14532d; border-color: #16a34a; }
-.status-select--parcial   { background: #fff7ed; color: #9a3412; border-color: #f97316; }
-.status-select--pendencia { background: #fefce8; color: #854d0e; border-color: #fcd34d; }
-.status-select--outros    { background: #eff6ff; color: #1e40af; border-color: #93c5fd; }
+.status-select--nao-visto { background: #f8fafc;  color: #475569; border-color: #cbd5e1; }
+.status-select--visto     { background: #fef9c3;  color: #854d0e; border-color: #fbbf24; }
+.status-select--laudado   { background: #bbf7d0;  color: #14532d; border-color: #16a34a; }
+.status-select--parcial   { background: #fed7aa;  color: #9a3412; border-color: #f97316; }
+.status-select--pendencia { background: #fee2e2;  color: #991b1b; border-color: #dc2626; }
+.status-select--outros    { background: #dbeafe;  color: #1e40af; border-color: #93c5fd; }
 
 /* hidden by filter */
 .list-row--hidden { display: none; }
