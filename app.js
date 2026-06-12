@@ -315,7 +315,7 @@ function buildRow(c) {
         </div>
         <div class="inline-edit__field">
           <label>Resumo clínico / Anotações</label>
-          <textarea class="ie-resumo" rows="5" placeholder="Descrição clínica, anotações do preceptor, comentários…">${escHtml(c.resumo || "")}</textarea>
+          <textarea class="ie-resumo" rows="15" placeholder="Descrição clínica, anotações do preceptor, comentários…">${escHtml(c.resumo || "")}</textarea>
         </div>
         <div class="list-row__detail-actions">
           <button class="btn btn--primary btn--sm" data-action="save-inline">Salvar alterações</button>
