@@ -594,6 +594,7 @@ body {
 }
 .toast--success { background: #166534; }
 .toast--error   { background: var(--clr-danger); }
+.toast--warning { background: #92400e; }
 .toast--visible { transform: translateX(-50%) translateY(0); opacity: 1; }
 
 /* ── Modal ──────────────────────────────────────────────────────────────────── */

@@ -791,17 +791,28 @@ Se não encontrar casos, retorne [].`;
 
 // ─── Sort by print order ─────────────────────────────────────────────────────
 document.getElementById("sort-by-print-btn").addEventListener("click", async () => {
-  if (!lastPrintOrder.length) return;
+  if (!lastPrintOrder.length) { showToast("Nenhum print importado ainda.", "error"); return; }
   const open = allCases.filter((c) => !c.liberado);
   const printIdx = (c) => {
     const i = lastPrintOrder.indexOf(normFap(c.fap));
     return i === -1 ? Infinity : i;
   };
-  const sorted = [...open].sort((a, b) => printIdx(a) - printIdx(b));
-  const batch = writeBatch(db);
-  sorted.forEach((c, i) => batch.update(caseDoc(c.id), { listOrder: (i + 1) * 1000 }));
-  await batch.commit();
-  showToast("Casos reordenados conforme o print.");
+  const matched = open.filter((c) => printIdx(c) !== Infinity);
+  const sorted  = [...open].sort((a, b) => printIdx(a) - printIdx(b));
+  try {
+    const batch = writeBatch(db);
+    sorted.forEach((c, i) => batch.update(caseDoc(c.id), { listOrder: (i + 1) * 1000 }));
+    await batch.commit();
+    const notFound = lastPrintOrder.filter((fap) => !open.some((c) => normFap(c.fap) === fap));
+    if (notFound.length) {
+      showToast(`Reordenado. ${matched.length} casos alinhados ao print. ${notFound.length} FAPs do print não encontradas na lista.`, "warning");
+    } else {
+      showToast(`Casos reordenados conforme o print (${matched.length} casos).`);
+    }
+  } catch (err) {
+    showToast("Erro ao reordenar: " + err.message, "error");
+    console.error("sort error:", err);
+  }
 });
 
 function normFap(fap) {
