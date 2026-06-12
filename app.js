@@ -17,8 +17,12 @@ let allCases        = [];
 let editingId       = null;
 let activeFilter    = "all";
 let pendingDeleteId = null;
-let lastPrintOrder  = [];          // FAPs in order from last imported print
-const expandedIds   = new Set();   // IDs of currently-open accordion rows
+let lastPrintOrder  = JSON.parse(localStorage.getItem("lastPrintOrder") || "[]");
+const expandedIds   = new Set();
+
+if (lastPrintOrder.length) {
+  document.getElementById("sort-by-print-btn").disabled = false;
+}
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const form           = document.getElementById("case-form");
@@ -684,6 +688,7 @@ Se não encontrar casos, retorne [].`;
         .filter((c) => /^\d{12}$/.test(c.fap));
 
       lastPrintOrder = extracted.map((c) => normFap(c.fap));
+      localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
       document.getElementById("sort-by-print-btn").disabled = false;
       showResults(extracted);
     } catch (err) {
