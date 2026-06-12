@@ -561,11 +561,14 @@ function flash(row, msg) {
   const dropzoneLabel  = document.getElementById("import-dropzone-label");
   const previewImg     = document.getElementById("import-preview");
   const analyzeBtn     = document.getElementById("import-analyze-btn");
-  const newList        = document.getElementById("import-new-list");
-  const existingList   = document.getElementById("import-existing-list");
-  const existingSection= document.getElementById("import-existing-section");
-  const newLabel       = document.getElementById("import-new-label");
-  const existingLabel  = document.getElementById("import-existing-label");
+  const newList         = document.getElementById("import-new-list");
+  const existingList    = document.getElementById("import-existing-list");
+  const probableList    = document.getElementById("import-probable-list");
+  const existingSection = document.getElementById("import-existing-section");
+  const probableSection = document.getElementById("import-probable-section");
+  const newLabel        = document.getElementById("import-new-label");
+  const existingLabel   = document.getElementById("import-existing-label");
+  const probableLabel   = document.getElementById("import-probable-label");
   const confirmBtn     = document.getElementById("import-confirm-btn");
 
   let selectedFile = null;
@@ -697,13 +700,55 @@ Se não encontrar casos, retorne [].`;
     }
   });
 
-  function showResults(extracted) {
-    const existingFaps = new Set(allCases.map((c) => normFap(c.fap)));
-    const novos     = extracted.filter((c) => !existingFaps.has(normFap(c.fap)));
-    const jaExistem = extracted.filter((c) =>  existingFaps.has(normFap(c.fap)));
+  function normNome(nome) {
+    return (nome ?? "").trim().toUpperCase().replace(/\s+/g, " ");
+  }
 
-    newList.innerHTML = "";
+  // Returns existing case that is "probably the same" as extracted case c.
+  // Matches on: exact FAP, or (name similarity ≥ 80% AND FAP differs by ≤ 2 digits).
+  function findDuplicate(c) {
+    const fap  = normFap(c.fap);
+    const nome = normNome(c.nome);
+    for (const ex of allCases) {
+      if (normFap(ex.fap) === fap) return { match: ex, reason: "fap" };
+      if (nome && normNome(ex.nome) && nameSimilar(nome, normNome(ex.nome)) && fapClose(fap, normFap(ex.fap))) {
+        return { match: ex, reason: "nome" };
+      }
+    }
+    return null;
+  }
+
+  function nameSimilar(a, b) {
+    if (!a || !b) return false;
+    // At least 80% of the shorter name's words appear in the other
+    const wa = a.split(" "), wb = b.split(" ");
+    const [shorter, longer] = wa.length <= wb.length ? [wa, wb] : [wb, wa];
+    const hits = shorter.filter((w) => w.length > 2 && longer.includes(w)).length;
+    return hits / shorter.length >= 0.8;
+  }
+
+  function fapClose(a, b) {
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff++;
+    return diff <= 2;
+  }
+
+  function showResults(extracted) {
+    const novos      = [];
+    const jaExistem  = [];
+    const provaveis  = [];   // name match but FAP slightly different
+
+    for (const c of extracted) {
+      const dup = findDuplicate(c);
+      if (!dup)                  novos.push(c);
+      else if (dup.reason === "fap") jaExistem.push({ c, match: dup.match });
+      else                       provaveis.push({ c, match: dup.match });
+    }
+
+    newList.innerHTML      = "";
     existingList.innerHTML = "";
+    probableList.innerHTML = "";
 
     if (novos.length === 0) {
       newList.innerHTML = `<p style="font-size:13px;color:var(--clr-text-muted);padding:8px 0;">Nenhum caso novo encontrado.</p>`;
@@ -725,10 +770,30 @@ Se não encontrar casos, retorne [].`;
 
     newLabel.textContent = `${novos.length} novo${novos.length !== 1 ? "s" : ""}`;
 
+    // Prováveis duplicatas — nome bate mas FAP ligeiramente diferente
+    if (provaveis.length > 0) {
+      probableSection.hidden = false;
+      probableLabel.textContent = `${provaveis.length} provável duplicata${provaveis.length !== 1 ? "s" : ""} (nome similar, FAP diferente)`;
+      provaveis.forEach(({ c, match }) => {
+        const row = document.createElement("div");
+        row.className = "import-case-row import-case-row--probable";
+        row.innerHTML = `
+          <input type="checkbox" style="flex-shrink:0;accent-color:#d97706;width:16px;height:16px;" />
+          <span class="import-case-row__fap" title="FAP no print">${escHtml(c.fap)}</span>
+          <span class="import-case-row__nome">${escHtml(c.nome)}</span>
+          <span style="font-size:11px;color:#92400e;margin-left:4px;" title="FAP no organizador">já existe: ${escHtml(match.fap)}</span>`;
+        row.dataset.fap  = c.fap;
+        row.dataset.nome = c.nome;
+        probableList.appendChild(row);
+      });
+    } else {
+      probableSection.hidden = true;
+    }
+
     if (jaExistem.length > 0) {
       existingSection.hidden = false;
       existingLabel.textContent = `${jaExistem.length} já existe${jaExistem.length !== 1 ? "m" : ""} no organizador`;
-      jaExistem.forEach((c) => {
+      jaExistem.forEach(({ c }) => {
         const row = document.createElement("div");
         row.className = "import-case-row import-case-row--existing";
         row.innerHTML = `
@@ -749,7 +814,10 @@ Se não encontrar casos, retorne [].`;
 
   // Confirm import
   confirmBtn.addEventListener("click", async () => {
-    const checked = [...newList.querySelectorAll(".import-case-row input:checked")];
+    const checked = [
+      ...newList.querySelectorAll(".import-case-row input:checked"),
+      ...probableList.querySelectorAll(".import-case-row input:checked"),
+    ];
     if (checked.length === 0) { showToast("Nenhum caso selecionado.", "error"); return; }
 
     confirmBtn.disabled = true;
