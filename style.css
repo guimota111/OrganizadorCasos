@@ -126,7 +126,7 @@ body {
 /* ── Stats bar ──────────────────────────────────────────────────────────────── */
 .stats-bar {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 12px;
   margin-top: 24px;
 }
@@ -159,12 +159,14 @@ body {
 .stat-card--visto::before      { background: #86efac; }
 .stat-card--laudado::before    { background: #16a34a; }
 .stat-card--pendencia::before  { background: #fbbf24; }
+.stat-card--parcial::before    { background: #f97316; }
 .stat-card--outros::before     { background: #60a5fa; }
 .stat-card--liberado::before   { background: #cbd5e1; }
 .stat-card--nao-visto .stat-card__value { color: #64748b; }
 .stat-card--visto .stat-card__value     { color: #16a34a; }
 .stat-card--laudado .stat-card__value   { color: #166534; }
 .stat-card--pendencia .stat-card__value { color: var(--clr-warning); }
+.stat-card--parcial .stat-card__value   { color: #ea580c; }
 .stat-card--outros .stat-card__value    { color: #2563eb; }
 .stat-card--liberado .stat-card__value  { color: var(--clr-text-muted); }
 .stat-card__label {
@@ -719,6 +721,9 @@ body {
 .import-case-row__nome { flex: 1; }
 
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .stats-bar { grid-template-columns: repeat(4, 1fr); }
+}
 @media (max-width: 900px) {
   .stats-bar { grid-template-columns: repeat(4, 1fr); }
 }

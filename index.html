@@ -68,6 +68,10 @@
         <div class="stat-card__value" id="cnt-laudado">—</div>
         <div class="stat-card__label">Laudados</div>
       </div>
+      <div class="stat-card stat-card--parcial">
+        <div class="stat-card__value" id="cnt-parcial">—</div>
+        <div class="stat-card__label">Parc. montado</div>
+      </div>
       <div class="stat-card stat-card--pendencia">
         <div class="stat-card__value" id="cnt-pendencia">—</div>
         <div class="stat-card__label">Com pendência</div>
@@ -123,6 +127,10 @@
                   ✅ Laudado — laudo emitido, aguardando discussão
                 </label>
                 <label class="radio-label">
+                  <input type="radio" name="status" value="parcial" />
+                  🟠 Parcialmente montado — aguardando complemento
+                </label>
+                <label class="radio-label">
                   <input type="radio" name="status" value="pendencia" />
                   ⏳ Pendência — descrever abaixo
                 </label>
@@ -152,11 +160,13 @@
         <button class="filter-btn" data-filter="nao-visto">⬜ Não visto <span class="filter-count" id="cnt-f-nao-visto">—</span></button>
         <button class="filter-btn" data-filter="visto">🟡 Visto mas não laudado <span class="filter-count" id="cnt-f-visto">—</span></button>
         <button class="filter-btn" data-filter="laudado">✅ Laudado <span class="filter-count" id="cnt-f-laudado">—</span></button>
+        <button class="filter-btn" data-filter="parcial">🟠 Parc. montado <span class="filter-count" id="cnt-f-parcial">—</span></button>
         <button class="filter-btn" data-filter="pendencia">⏳ Pendência <span class="filter-count" id="cnt-f-pendencia">—</span></button>
         <button class="filter-btn" data-filter="outros">🔵 Outros <span class="filter-count" id="cnt-f-outros">—</span></button>
       </div>
       <div style="display:flex;align-items:center;gap:12px;">
         <button class="btn btn--ghost btn--sm" id="import-print-btn">📸 Importar do print</button>
+        <button class="btn btn--ghost btn--sm" id="sort-by-print-btn" disabled title="Ordena os casos conforme a ordem do último print importado">↕ Ordenar por print</button>
         <button class="btn btn--ghost btn--sm" id="export-img-btn">📷 Gerar imagem</button>
         <p class="list-toolbar__hint">Arraste as linhas para reordenar</p>
       </div>

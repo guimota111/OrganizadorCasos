@@ -13,10 +13,12 @@ const casesCol = () => collection(db, "users", currentUid, "casos");
 const caseDoc  = (id) => doc(db, "users", currentUid, "casos", id);
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let allCases     = [];
-let editingId    = null;
-let activeFilter = "all";
+let allCases        = [];
+let editingId       = null;
+let activeFilter    = "all";
 let pendingDeleteId = null;
+let lastPrintOrder  = [];          // FAPs in order from last imported print
+const expandedIds   = new Set();   // IDs of currently-open accordion rows
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const form           = document.getElementById("case-form");
@@ -192,6 +194,7 @@ function render() {
   document.getElementById("cnt-nao-visto").textContent= open.filter((c) => c.status === "nao-visto").length;
   document.getElementById("cnt-visto").textContent    = open.filter((c) => c.status === "visto").length;
   document.getElementById("cnt-laudado").textContent  = open.filter((c) => c.status === "laudado").length;
+  document.getElementById("cnt-parcial").textContent  = open.filter((c) => c.status === "parcial").length;
   document.getElementById("cnt-pendencia").textContent= open.filter((c) => c.status === "pendencia").length;
   document.getElementById("cnt-outros").textContent   = open.filter((c) => c.status === "outros").length;
   document.getElementById("cnt-liberado").textContent = released.length;
@@ -203,6 +206,11 @@ function render() {
   const visible = open.filter((c) => activeFilter === "all" || c.status === activeFilter);
   emptyList.hidden = visible.length > 0;
   visible.forEach((c) => caseListEl.appendChild(buildRow(c)));
+  // restore accordion state after re-render (e.g. after status dropdown change)
+  expandedIds.forEach((id) => {
+    const r = caseListEl.querySelector(`[data-id="${id}"]`);
+    if (r) openRowDetail(r);
+  });
   initDrag(caseListEl);
 
   // released list
@@ -212,12 +220,13 @@ function render() {
 }
 
 function updateFilterCounts(open) {
-  document.getElementById("cnt-all").textContent          = open.length;
-  document.getElementById("cnt-f-nao-visto").textContent  = open.filter((c) => c.status === "nao-visto").length;
-  document.getElementById("cnt-f-visto").textContent      = open.filter((c) => c.status === "visto").length;
-  document.getElementById("cnt-f-laudado").textContent    = open.filter((c) => c.status === "laudado").length;
-  document.getElementById("cnt-f-pendencia").textContent  = open.filter((c) => c.status === "pendencia").length;
-  document.getElementById("cnt-f-outros").textContent     = open.filter((c) => c.status === "outros").length;
+  document.getElementById("cnt-all").textContent           = open.length;
+  document.getElementById("cnt-f-nao-visto").textContent   = open.filter((c) => c.status === "nao-visto").length;
+  document.getElementById("cnt-f-visto").textContent       = open.filter((c) => c.status === "visto").length;
+  document.getElementById("cnt-f-laudado").textContent     = open.filter((c) => c.status === "laudado").length;
+  document.getElementById("cnt-f-parcial").textContent     = open.filter((c) => c.status === "parcial").length;
+  document.getElementById("cnt-f-pendencia").textContent   = open.filter((c) => c.status === "pendencia").length;
+  document.getElementById("cnt-f-outros").textContent      = open.filter((c) => c.status === "outros").length;
 }
 
 // ─── Filter buttons ───────────────────────────────────────────────────────────
@@ -234,6 +243,7 @@ const STATUS_OPTIONS = [
   { value: "nao-visto", label: "⬜ Não visto" },
   { value: "visto",     label: "🟡 Visto mas não laudado" },
   { value: "laudado",   label: "✅ Laudado" },
+  { value: "parcial",   label: "🟠 Parcialmente montado" },
   { value: "pendencia", label: "⏳ Pendência" },
   { value: "outros",    label: "🔵 Outros" },
 ];
@@ -277,22 +287,12 @@ function buildRow(c) {
           <input type="text" class="ie-resumo-linha" value="${escHtml(c.resumoLinha || "")}" placeholder="Breve descrição do caso…" />
         </div>
         <div class="inline-edit__field">
-          <label>Resumo clínico</label>
-          <textarea class="ie-resumo" rows="2" placeholder="Descrição clínica completa…">${escHtml(c.resumo || "")}</textarea>
-        </div>
-        ${c.status === "pendencia" ? `
-        <div class="inline-edit__field">
-          <label>Descrição da pendência</label>
-          <input type="text" class="ie-pendencia" value="${escHtml(c.pendenciaDesc || "")}" placeholder="Descreva a pendência…" />
-        </div>` : ""}
-        <div class="inline-edit__field">
-          <label>Anotações do preceptor${c.notasPreceptor ? ' <span class="notes-dot"></span>' : ""}</label>
-          <textarea class="ie-notas" rows="2" placeholder="Anote os comentários do preceptor…">${escHtml(c.notasPreceptor || "")}</textarea>
+          <label>Resumo clínico / Anotações</label>
+          <textarea class="ie-resumo" rows="5" placeholder="Descrição clínica, anotações do preceptor, comentários…">${escHtml(c.resumo || "")}</textarea>
         </div>
         <div class="list-row__detail-actions">
           <button class="btn btn--primary btn--sm" data-action="save-inline">Salvar alterações</button>
           <button class="btn btn--success btn--sm" data-action="liberar">Liberar caso</button>
-          <button class="btn btn--warning btn--sm" data-action="add-pendencia">⏳ Adicionar pendência</button>
           <button class="btn btn--danger btn--sm" data-action="excluir" data-nome="${escHtml(c.nome)}">Excluir</button>
         </div>
       </div>
@@ -324,13 +324,26 @@ function buildRow(c) {
   return row;
 }
 
-function toggleRowDetail(row) {
+function openRowDetail(row) {
   const detail  = row.querySelector(".list-row__detail");
   const chevron = row.querySelector(".list-row__chevron");
-  const open    = detail.hidden;
-  detail.hidden = !open;
-  row.classList.toggle("list-row--expanded", open);
-  chevron.style.transform = open ? "rotate(180deg)" : "";
+  detail.hidden = false;
+  row.classList.add("list-row--expanded");
+  chevron.style.transform = "rotate(180deg)";
+  expandedIds.add(row.dataset.id);
+}
+
+function toggleRowDetail(row) {
+  const detail  = row.querySelector(".list-row__detail");
+  const id      = row.dataset.id;
+  if (detail.hidden) {
+    openRowDetail(row);
+  } else {
+    detail.hidden = true;
+    row.classList.remove("list-row--expanded");
+    row.querySelector(".list-row__chevron").style.transform = "";
+    expandedIds.delete(id);
+  }
 }
 
 async function handleRowAction(e, c, row) {
@@ -349,20 +362,12 @@ async function handleRowAction(e, c, row) {
     const fap         = row.querySelector(".ie-fap").value.trim();
     const resumoLinha = row.querySelector(".ie-resumo-linha").value.trim();
     const resumo      = row.querySelector(".ie-resumo").value.trim();
-    const notasPreceptor = row.querySelector(".ie-notas").value.trim();
-    const pendenciaEl = row.querySelector(".ie-pendencia");
-    const pendenciaDesc = pendenciaEl ? pendenciaEl.value.trim() : c.pendenciaDesc || "";
     if (!nome || !fap) { showToast("Nome e FAP são obrigatórios.", "error"); return; }
-    await updateDoc(caseDoc(c.id), {
-      nome, fap, resumoLinha, resumo, notasPreceptor, pendenciaDesc, updatedAt: serverTimestamp(),
-    });
+    await updateDoc(caseDoc(c.id), { nome, fap, resumoLinha, resumo, updatedAt: serverTimestamp() });
     flash(row, "✅ Salvo");
 
   } else if (action === "liberar") {
     await updateDoc(caseDoc(c.id), { liberado: true, checked: false, updatedAt: serverTimestamp() });
-
-  } else if (action === "add-pendencia") {
-    await updateDoc(caseDoc(c.id), { status: "pendencia", updatedAt: serverTimestamp() });
 
   } else if (action === "excluir") {
     pendingDeleteId = c.id;
@@ -434,6 +439,7 @@ let dragSrcId = null;
 function initDrag(container) {
   container.querySelectorAll(".list-row[draggable='true']").forEach((row) => {
     row.addEventListener("dragstart", (e) => {
+      if (row.classList.contains("list-row--expanded")) { e.preventDefault(); return; }
       dragSrcId = row.dataset.id;
       row.classList.add("list-row--dragging");
       e.dataTransfer.effectAllowed = "move";
@@ -642,16 +648,14 @@ Se não encontrar casos, retorne [].`;
         .map((c) => ({ ...c, fap: (c.fap ?? "").trim().replace(/\./g, "") }))
         .filter((c) => /^\d{12}$/.test(c.fap));
 
+      lastPrintOrder = extracted.map((c) => normFap(c.fap));
+      document.getElementById("sort-by-print-btn").disabled = false;
       showResults(extracted);
     } catch (err) {
       showStep(stepUpload);
       showToast("Erro: " + err.message, "error");
     }
   });
-
-  function normFap(fap) {
-    return (fap ?? "").trim().replace(/\./g, "").toUpperCase();
-  }
 
   function showResults(extracted) {
     const existingFaps = new Set(allCases.map((c) => normFap(c.fap)));
@@ -717,18 +721,17 @@ Se não encontrar casos, retorne [].`;
         .reduce((m, c) => Math.max(m, c.listOrder ?? c.sortOrder ?? 0), 0);
 
       for (let i = 0; i < checked.length; i++) {
-        const row = checked[i].closest(".import-case-row");
+        const r = checked[i].closest(".import-case-row");
         await addDoc(casesCol(), {
-          nome:       row.dataset.nome,
-          fap:        row.dataset.fap,
-          status:     "nao-visto",
-          liberado:   false,
+          nome:        r.dataset.nome,
+          fap:         r.dataset.fap,
+          status:      "nao-visto",
+          liberado:    false,
           resumoLinha: "",
-          resumo:     "",
-          pendenciaDesc: "",
-          listOrder:  maxOrder + (i + 1) * 1000,
-          createdAt:  serverTimestamp(),
-          updatedAt:  serverTimestamp(),
+          resumo:      "",
+          listOrder:   maxOrder + (i + 1) * 1000,
+          createdAt:   serverTimestamp(),
+          updatedAt:   serverTimestamp(),
         });
       }
 
@@ -750,6 +753,25 @@ Se não encontrar casos, retorne [].`;
     });
   }
 })();
+
+// ─── Sort by print order ─────────────────────────────────────────────────────
+document.getElementById("sort-by-print-btn").addEventListener("click", async () => {
+  if (!lastPrintOrder.length) return;
+  const open = allCases.filter((c) => !c.liberado);
+  const printIdx = (c) => {
+    const i = lastPrintOrder.indexOf(normFap(c.fap));
+    return i === -1 ? Infinity : i;
+  };
+  const sorted = [...open].sort((a, b) => printIdx(a) - printIdx(b));
+  const batch = writeBatch(db);
+  sorted.forEach((c, i) => batch.update(caseDoc(c.id), { listOrder: (i + 1) * 1000 }));
+  await batch.commit();
+  showToast("Casos reordenados conforme o print.");
+});
+
+function normFap(fap) {
+  return (fap ?? "").trim().replace(/\./g, "").toUpperCase();
+}
 
 // ─── Export image ────────────────────────────────────────────────────────────
 document.getElementById("export-img-btn").addEventListener("click", () => {
