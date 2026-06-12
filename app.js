@@ -824,6 +824,20 @@ function normFap(fap) {
   return (fap ?? "").trim().replace(/\./g, "").toUpperCase();
 }
 
+// ─── Clear all checkmarks ────────────────────────────────────────────────────
+document.getElementById("clear-checks-btn").addEventListener("click", async () => {
+  const checked = allCases.filter((c) => !c.liberado && c.checked);
+  if (!checked.length) { showToast("Nenhum caso marcado.", "error"); return; }
+  try {
+    const batch = writeBatch(db);
+    checked.forEach((c) => batch.update(caseDoc(c.id), { checked: false, checkedAt: null }));
+    await batch.commit();
+    showToast(`${checked.length} OK${checked.length !== 1 ? "s" : ""} removido${checked.length !== 1 ? "s" : ""}.`);
+  } catch (err) {
+    showToast("Erro: " + err.message, "error");
+  }
+});
+
 // ─── Export image ────────────────────────────────────────────────────────────
 document.getElementById("export-img-btn").addEventListener("click", () => {
   // Collect visible open cases in current order
