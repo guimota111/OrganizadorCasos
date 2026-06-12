@@ -262,6 +262,7 @@ function renderLogHtml(c) {
 }
 
 
+const STATUS_OPTIONS = [
   { value: "nao-visto", label: "⬜ Não visto" },
   { value: "visto",     label: "🟡 Visto mas não laudado" },
   { value: "laudado",   label: "✅ Laudado" },
