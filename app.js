@@ -71,7 +71,8 @@ form.addEventListener("submit", async (e) => {
 
   if (!nome || !fap) { showToast("Preencha nome e FAP.", "error"); return; }
 
-  const payload = { nome, fap, resumoLinha, resumo, status, pendenciaDesc, updatedAt: serverTimestamp() };
+  const resumoLog = resumoLinha ? [{ text: resumoLinha, ts: Date.now() }] : [];
+  const payload = { nome, fap, resumoLinha, resumoLog, resumo, status, pendenciaDesc, updatedAt: serverTimestamp() };
 
   try {
     if (editingId) {
@@ -239,7 +240,28 @@ document.querySelectorAll(".filter-btn").forEach((btn) => {
   });
 });
 
-const STATUS_OPTIONS = [
+// ─── resumoLog helpers ────────────────────────────────────────────────────────
+// Normalise legacy string field into array format
+function getLog(c) {
+  if (Array.isArray(c.resumoLog) && c.resumoLog.length) return c.resumoLog;
+  if (c.resumoLinha) return [{ text: c.resumoLinha, ts: c.createdAt?.seconds * 1000 || 0 }];
+  return [];
+}
+function lastLogText(c) {
+  const log = getLog(c);
+  return log.length ? log[log.length - 1].text : "";
+}
+function renderLogHtml(c) {
+  const log = getLog(c);
+  if (!log.length) return `<p class="log-empty">Nenhuma entrada ainda.</p>`;
+  return [...log].reverse().map((entry, i) => `
+    <div class="log-entry${i === 0 ? " log-entry--latest" : ""}">
+      <span class="log-entry__ts">${entry.ts ? new Date(entry.ts).toLocaleString("pt-BR", {day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}) : "—"}</span>
+      <span class="log-entry__text">${escHtml(entry.text)}</span>
+    </div>`).join("");
+}
+
+
   { value: "nao-visto", label: "⬜ Não visto" },
   { value: "visto",     label: "🟡 Visto mas não laudado" },
   { value: "laudado",   label: "✅ Laudado" },
@@ -265,7 +287,7 @@ function buildRow(c) {
     <div class="list-row__fap" title="Clique para copiar FAP" style="cursor:pointer;">${escHtml(c.fap)}</div>
     <div class="list-row__main">
       <div class="list-row__nome">${escHtml(c.nome)}</div>
-      ${c.resumoLinha ? `<div class="list-row__resumo-linha">${escHtml(c.resumoLinha)}</div>` : ""}
+      ${lastLogText(c) ? `<div class="list-row__resumo-linha">${escHtml(lastLogText(c))}</div>` : ""}
     </div>
     <select class="status-select status-select--${c.status}" data-action="change-status">${selectOptions}</select>
     ${c.checked && c.checkedAt ? `<span class="list-row__checked-stamp">Visto em ${fmtStamp(c.checkedAt)}</span>` : ""}
@@ -283,8 +305,12 @@ function buildRow(c) {
           </div>
         </div>
         <div class="inline-edit__field">
-          <label>Resumo em uma linha</label>
-          <input type="text" class="ie-resumo-linha" value="${escHtml(c.resumoLinha || "")}" placeholder="Breve descrição do caso…" />
+          <label>Atualizações / Pendências <span class="log-count">${getLog(c).length} entr${getLog(c).length === 1 ? "ada" : "adas"}</span></label>
+          <div class="log-input-row">
+            <input type="text" class="ie-log-new" placeholder="Nova entrada…" />
+            <button class="btn btn--primary btn--sm" data-action="add-log">Adicionar</button>
+          </div>
+          <div class="log-list">${renderLogHtml(c)}</div>
         </div>
         <div class="inline-edit__field">
           <label>Resumo clínico / Anotações</label>
@@ -358,13 +384,21 @@ async function handleRowAction(e, c, row) {
     });
 
   } else if (action === "save-inline") {
-    const nome        = row.querySelector(".ie-nome").value.trim();
-    const fap         = row.querySelector(".ie-fap").value.trim();
-    const resumoLinha = row.querySelector(".ie-resumo-linha").value.trim();
-    const resumo      = row.querySelector(".ie-resumo").value.trim();
+    const nome   = row.querySelector(".ie-nome").value.trim();
+    const fap    = row.querySelector(".ie-fap").value.trim();
+    const resumo = row.querySelector(".ie-resumo").value.trim();
     if (!nome || !fap) { showToast("Nome e FAP são obrigatórios.", "error"); return; }
-    await updateDoc(caseDoc(c.id), { nome, fap, resumoLinha, resumo, updatedAt: serverTimestamp() });
+    await updateDoc(caseDoc(c.id), { nome, fap, resumo, updatedAt: serverTimestamp() });
     flash(row, "✅ Salvo");
+
+  } else if (action === "add-log") {
+    const input = row.querySelector(".ie-log-new");
+    const text  = input.value.trim();
+    if (!text) return;
+    const entry    = { text, ts: Date.now() };
+    const newLog   = [...getLog(c), entry];
+    await updateDoc(caseDoc(c.id), { resumoLog: newLog, resumoLinha: text, updatedAt: serverTimestamp() });
+    input.value = "";
 
   } else if (action === "liberar") {
     await updateDoc(caseDoc(c.id), { liberado: true, checked: false, updatedAt: serverTimestamp() });
