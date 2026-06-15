@@ -1089,6 +1089,61 @@ document.getElementById("export-img-btn").addEventListener("click", () => {
   link.click();
 });
 
+// ─── WhatsApp list ───────────────────────────────────────────────────────────
+document.getElementById("whatsapp-btn").addEventListener("click", () => {
+  const rows   = [...document.querySelectorAll("#case-list .list-row")];
+  const items  = rows.map((row) => allCases.find((x) => x.id === row.dataset.id)).filter(Boolean);
+
+  if (items.length === 0) { showToast("Nenhum caso para exportar.", "error"); return; }
+
+  const STATUS_LABEL = {
+    "nao-visto": "não visto",
+    "visto":     "visto mas não laudado",
+    "laudado":   "laudado",
+    "parcial":   "parcialmente montado",
+    "pendencia": "pendência",
+    "outros":    "outros",
+  };
+
+  const lines = items.map((c, i) => {
+    const fap    = c.fap ?? "";
+    const nome   = c.nome ?? "";
+    const update = lastLogText(c) ?? "";
+    const status = c.status ?? "nao-visto";
+
+    const partes = [fap, nome];
+    if (update) partes.push(update);
+
+    let linha = partes.join(" - ");
+
+    if (status === "laudado") {
+      linha = `*${linha}* ✅`;
+    } else if (status === "pendencia") {
+      linha = `${linha} ❗`;
+    } else if (status !== "nao-visto") {
+      linha = `${linha} — ${STATUS_LABEL[status] ?? status}`;
+    }
+
+    return `${i + 1}. ${linha}`;
+  });
+
+  const texto = lines.join("\n");
+
+  navigator.clipboard.writeText(texto).then(() => {
+    showToast("Lista copiada! Cole no WhatsApp.");
+  }).catch(() => {
+    // fallback: open in a textarea for manual copy
+    const ta = document.createElement("textarea");
+    ta.value = texto;
+    ta.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80vw;height:60vh;z-index:9999;padding:12px;font-size:13px;border-radius:8px;border:1px solid #cbd5e1;";
+    document.body.appendChild(ta);
+    ta.select();
+    const close = (e) => { if (e.target !== ta) { ta.remove(); document.removeEventListener("click", close); } };
+    setTimeout(() => document.addEventListener("click", close), 100);
+    showToast("Copie o texto da caixa que abriu.", "warning");
+  });
+});
+
 function clip(str, max) {
   if (!str) return "";
   return str.length > max ? str.slice(0, max - 1) + "…" : str;
