@@ -324,7 +324,16 @@ function buildRow(c) {
         <div class="list-row__detail-actions">
           <button class="btn btn--primary btn--sm" data-action="save-inline">Salvar alterações</button>
           <button class="btn btn--success btn--sm" data-action="liberar">Liberar caso</button>
+          <button class="btn btn--ghost btn--sm" data-action="reclamacao">📨 Abrir reclamação</button>
           <button class="btn btn--danger btn--sm" data-action="excluir" data-nome="${escHtml(c.nome)}">Excluir</button>
+        </div>
+        <div class="reclamacao-panel" hidden>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Explique a reclamação:</label>
+          <textarea class="reclamacao-texto" rows="5" placeholder="Descreva o problema ou solicitação…" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn btn--ghost btn--sm" data-action="reclamacao-cancelar">Cancelar</button>
+            <button class="btn btn--primary btn--sm" data-action="reclamacao-ok">OK — Copiar mensagem</button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -407,6 +416,28 @@ async function handleRowAction(e, c, row) {
 
   } else if (action === "liberar") {
     await updateDoc(caseDoc(c.id), { liberado: true, checked: false, updatedAt: serverTimestamp() });
+
+  } else if (action === "reclamacao") {
+    const panel = row.querySelector(".reclamacao-panel");
+    panel.hidden = false;
+    panel.querySelector(".reclamacao-texto").focus();
+
+  } else if (action === "reclamacao-cancelar") {
+    const panel = row.querySelector(".reclamacao-panel");
+    panel.hidden = true;
+    panel.querySelector(".reclamacao-texto").value = "";
+
+  } else if (action === "reclamacao-ok") {
+    const texto = row.querySelector(".reclamacao-texto").value.trim();
+    const msg = `Bom dia,\nPor favor, pode ver este caso? ${c.fap ?? ""} - ${c.nome ?? ""}\n${texto}\nMuito obrigado`;
+    navigator.clipboard.writeText(msg).then(() => {
+      showToast("Mensagem copiada! Cole no WhatsApp.");
+      const panel = row.querySelector(".reclamacao-panel");
+      panel.hidden = true;
+      panel.querySelector(".reclamacao-texto").value = "";
+    }).catch(() => {
+      showToast("Erro ao copiar. Tente novamente.", "error");
+    });
 
   } else if (action === "excluir") {
     pendingDeleteId = c.id;
