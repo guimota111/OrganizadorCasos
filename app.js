@@ -324,6 +324,7 @@ function buildRow(c) {
         <div class="list-row__detail-actions">
           <button class="btn btn--primary btn--sm" data-action="save-inline">Salvar alterações</button>
           <button class="btn btn--success btn--sm" data-action="liberar">Liberar caso</button>
+          <button class="btn btn--ghost btn--sm" data-action="abrir-sistema" title="Copia a FAP e abre o sistema da empresa">🔍 Abrir no sistema</button>
           <button class="btn btn--ghost btn--sm" data-action="reclamacao">📨 Abrir reclamação</button>
           <button class="btn btn--danger btn--sm" data-action="excluir" data-nome="${escHtml(c.nome)}">Excluir</button>
         </div>
@@ -416,6 +417,12 @@ async function handleRowAction(e, c, row) {
 
   } else if (action === "liberar") {
     await updateDoc(caseDoc(c.id), { liberado: true, checked: false, updatedAt: serverTimestamp() });
+
+  } else if (action === "abrir-sistema") {
+    const fap = (c.fap ?? "").replace(/\./g, "");
+    navigator.clipboard.writeText(`BUSCAR:${fap}`).then(() => {
+      showToast("Vá para a aba do sistema — a busca será feita automaticamente.");
+    }).catch(() => showToast("Erro ao copiar FAP.", "error"));
 
   } else if (action === "reclamacao") {
     const panel = row.querySelector(".reclamacao-panel");
