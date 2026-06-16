@@ -697,7 +697,7 @@ Se não encontrar casos, retorne [].`;
         },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001",
-          max_tokens: 1024,
+          max_tokens: 4096,
           messages: [{
             role: "user",
             content: [
@@ -716,7 +716,24 @@ Se não encontrar casos, retorne [].`;
       const data = await res.json();
       const text = data?.content?.[0]?.text ?? "[]";
       const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      const parsed = JSON.parse(jsonStr);
+
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonStr);
+      } catch (_) {
+        // JSON truncado: extrai os objetos completos via regex
+        const matches = [...jsonStr.matchAll(/\{\s*"nome"\s*:\s*"([^"]+)"\s*,\s*"fap"\s*:\s*"([^"]+)"\s*\}/g)];
+        const altMatches = [...jsonStr.matchAll(/\{\s*"fap"\s*:\s*"([^"]+)"\s*,\s*"nome"\s*:\s*"([^"]+)"\s*\}/g)];
+        if (matches.length || altMatches.length) {
+          parsed = [
+            ...matches.map((m) => ({ nome: m[1], fap: m[2] })),
+            ...altMatches.map((m) => ({ fap: m[1], nome: m[2] })),
+          ];
+          showToast(`Resposta incompleta da IA — ${parsed.length} casos recuperados.`, "warning");
+        } else {
+          throw new Error("Resposta inválida da IA. Tente novamente com uma imagem mais nítida.");
+        }
+      }
       const extracted = parsed
         .map((c) => ({ ...c, fap: (c.fap ?? "").trim().replace(/\./g, "") }))
         .filter((c) => /^\d{12}$/.test(c.fap));
