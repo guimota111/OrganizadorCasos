@@ -714,25 +714,41 @@ Se não encontrar casos, retorne [].`;
       }
 
       const data = await res.json();
-      const text = data?.content?.[0]?.text ?? "[]";
-      const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const rawText   = data?.content?.[0]?.text ?? "";
+      const truncated = data?.stop_reason === "max_tokens";
+      const jsonStr   = rawText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+
+      // Regex que captura objetos {nome, fap} em qualquer ordem e com whitespace variado
+      function extractByRegex(str) {
+        const rx = /\{[^}]*"nome"\s*:\s*"([^"]+)"[^}]*"fap"\s*:\s*"([^"]+)"[^}]*\}|\{[^}]*"fap"\s*:\s*"([^"]+)"[^}]*"nome"\s*:\s*"([^"]+)"[^}]*\}/g;
+        const results = [];
+        for (const m of str.matchAll(rx)) {
+          results.push(m[1] ? { nome: m[1], fap: m[2] } : { nome: m[4], fap: m[3] });
+        }
+        return results;
+      }
 
       let parsed;
+      if (!jsonStr) {
+        throw new Error("A IA não retornou nenhuma resposta. Verifique a chave de API e tente novamente.");
+      }
       try {
         parsed = JSON.parse(jsonStr);
       } catch (_) {
-        // JSON truncado: extrai os objetos completos via regex
-        const matches = [...jsonStr.matchAll(/\{\s*"nome"\s*:\s*"([^"]+)"\s*,\s*"fap"\s*:\s*"([^"]+)"\s*\}/g)];
-        const altMatches = [...jsonStr.matchAll(/\{\s*"fap"\s*:\s*"([^"]+)"\s*,\s*"nome"\s*:\s*"([^"]+)"\s*\}/g)];
-        if (matches.length || altMatches.length) {
-          parsed = [
-            ...matches.map((m) => ({ nome: m[1], fap: m[2] })),
-            ...altMatches.map((m) => ({ fap: m[1], nome: m[2] })),
-          ];
-          showToast(`Resposta incompleta da IA — ${parsed.length} casos recuperados.`, "warning");
+        // JSON truncado: tenta recuperar objetos completos via regex
+        const recovered = extractByRegex(jsonStr);
+        if (recovered.length) {
+          parsed = recovered;
+          const msg = truncated
+            ? `Resposta cortada pela IA — ${parsed.length} casos recuperados. Tente com um print menor.`
+            : `Formato inesperado — ${parsed.length} casos recuperados.`;
+          showToast(msg, "warning");
         } else {
-          throw new Error("Resposta inválida da IA. Tente novamente com uma imagem mais nítida.");
+          throw new Error("A IA não conseguiu identificar casos nesta imagem. Tente com uma imagem mais nítida.");
         }
+      }
+      if (truncated && Array.isArray(parsed)) {
+        showToast(`Atenção: resposta cortada. Alguns casos podem ter ficado de fora. Tente um print menor.`, "warning");
       }
       const extracted = parsed
         .map((c) => ({ ...c, fap: (c.fap ?? "").trim().replace(/\./g, "") }))
