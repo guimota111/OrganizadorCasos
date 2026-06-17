@@ -1184,6 +1184,10 @@ document.getElementById("whatsapp-btn").addEventListener("click", () => {
       linha = `*${linha}* ✅`;
     } else if (status === "pendencia") {
       linha = `${linha} ❗`;
+    } else if (status === "visto") {
+      linha = `${linha} 🟨 — visto mas não laudado`;
+    } else if (status === "parcial") {
+      linha = `${linha} 🟨 — parcialmente montado`;
     } else if (status !== "nao-visto") {
       linha = `${linha} — ${STATUS_LABEL[status] ?? status}`;
     }
