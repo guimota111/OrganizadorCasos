@@ -460,7 +460,10 @@ function buildReleasedRow(c) {
     <div></div>
     <div></div>
     <div class="list-row__fap" style="color:var(--clr-text-muted);cursor:pointer;" title="Clique para copiar FAP">${escHtml(c.fap)}</div>
-    <div class="list-row__main"><div class="list-row__nome" style="color:var(--clr-text-muted);font-weight:500;">${escHtml(c.nome)}</div></div>
+    <div class="list-row__main">
+        <div class="list-row__nome" style="color:var(--clr-text-muted);font-weight:500;">${escHtml(c.nome)}</div>
+        ${lastLogText(c) ? `<div class="list-row__resumo-linha" style="color:var(--clr-text-muted);">${escHtml(lastLogText(c))}</div>` : ""}
+      </div>
     <span class="badge badge--liberado">Liberado ${when}</span>
     <span class="list-row__chevron" aria-hidden="true">▾</span>
     <div class="list-row__detail" hidden>
