@@ -291,7 +291,7 @@ function buildRow(c) {
     <button class="list-row__check" data-action="toggle-check" title="Marcar como checado">✓</button>
     <div class="list-row__fap" title="Clique para copiar FAP" style="cursor:pointer;">${escHtml(c.fap)}</div>
     <div class="list-row__main">
-      <div class="list-row__nome">${escHtml(c.nome)}</div>
+      <div class="list-row__nome" style="cursor:pointer;" title="Clique para copiar nome">${escHtml(c.nome)}</div>
       ${lastLogText(c) ? `<div class="list-row__resumo-linha">${escHtml(lastLogText(c))}</div>` : ""}
     </div>
     <select class="status-select status-select--${c.status}" data-action="change-status">${selectOptions}</select>
@@ -348,8 +348,18 @@ function buildRow(c) {
     setTimeout(() => { el.textContent = orig; }, 1500);
   });
 
+  // Click name to copy
+  row.querySelector(".list-row__nome").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(c.nome).catch(() => {});
+    const el = e.currentTarget;
+    const orig = el.textContent;
+    el.textContent = "✅ Copiado!";
+    setTimeout(() => { el.textContent = orig; }, 1500);
+  });
+
   row.addEventListener("click", (e) => {
-    if (e.target.closest(".list-row__detail") || e.target.closest(".list-row__handle") || e.target.closest(".status-select")) return;
+    if (e.target.closest(".list-row__detail") || e.target.closest(".list-row__handle") || e.target.closest(".status-select") || e.target.closest(".list-row__fap") || e.target.closest(".list-row__nome")) return;
     toggleRowDetail(row);
   });
   row.querySelectorAll("[data-action]").forEach((btn) =>
@@ -461,7 +471,7 @@ function buildReleasedRow(c) {
     <div></div>
     <div class="list-row__fap" style="color:var(--clr-text-muted);cursor:pointer;" title="Clique para copiar FAP">${escHtml(c.fap)}</div>
     <div class="list-row__main">
-        <div class="list-row__nome" style="color:var(--clr-text-muted);font-weight:500;">${escHtml(c.nome)}</div>
+        <div class="list-row__nome" style="color:var(--clr-text-muted);font-weight:500;cursor:pointer;" title="Clique para copiar nome">${escHtml(c.nome)}</div>
         ${lastLogText(c) ? `<div class="list-row__resumo-linha" style="color:var(--clr-text-muted);">${escHtml(lastLogText(c))}</div>` : ""}
       </div>
     <span class="badge badge--liberado">Liberado ${when}</span>
@@ -483,8 +493,16 @@ function buildReleasedRow(c) {
     el.textContent = "✅ Copiado!";
     setTimeout(() => { el.textContent = orig; }, 1500);
   });
+  row.querySelector(".list-row__nome").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(c.nome).catch(() => {});
+    const el = e.currentTarget;
+    const orig = el.textContent;
+    el.textContent = "✅ Copiado!";
+    setTimeout(() => { el.textContent = orig; }, 1500);
+  });
   row.addEventListener("click", (e) => {
-    if (e.target.closest(".list-row__detail") || e.target.closest(".list-row__fap")) return;
+    if (e.target.closest(".list-row__detail") || e.target.closest(".list-row__fap") || e.target.closest(".list-row__nome")) return;
     toggleRowDetail(row);
   });
   row.querySelectorAll("[data-action]").forEach((btn) =>
