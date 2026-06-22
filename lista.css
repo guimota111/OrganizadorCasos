@@ -137,6 +137,21 @@
   text-overflow: ellipsis;
   margin-top: 1px;
 }
+.copy-nome-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: #94a3b8;
+  padding: 0 2px;
+  margin-left: 4px;
+  vertical-align: middle;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.list-row:hover .copy-nome-btn,
+.list-row--expanded .copy-nome-btn { opacity: 1; }
+
 .list-row__nome {
   font-size: 14px;
   font-weight: 700;
