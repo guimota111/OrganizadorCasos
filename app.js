@@ -206,15 +206,31 @@ function render() {
   document.getElementById("badge-liberado").textContent = released.length;
   updateFilterCounts(open);
 
+  // Save unsaved textarea content from expanded rows before rebuilding
+  const savedResumo = {};
+  expandedIds.forEach((id) => {
+    const r = caseListEl.querySelector(`[data-id="${id}"]`);
+    if (r) {
+      const ta = r.querySelector(".ie-resumo");
+      if (ta) savedResumo[id] = ta.value;
+    }
+  });
+
   // open list
   caseListEl.innerHTML = "";
   const visible = open.filter((c) => activeFilter === "all" || c.status === activeFilter);
   emptyList.hidden = visible.length > 0;
   visible.forEach((c) => caseListEl.appendChild(buildRow(c)));
-  // restore accordion state after re-render (e.g. after status dropdown change)
+  // restore accordion state and unsaved textarea content after re-render
   expandedIds.forEach((id) => {
     const r = caseListEl.querySelector(`[data-id="${id}"]`);
-    if (r) openRowDetail(r);
+    if (r) {
+      openRowDetail(r);
+      if (savedResumo[id] !== undefined) {
+        const ta = r.querySelector(".ie-resumo");
+        if (ta) ta.value = savedResumo[id];
+      }
+    }
   });
   initDrag(caseListEl);
 
