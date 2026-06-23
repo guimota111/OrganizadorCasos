@@ -17,6 +17,8 @@ let allCases        = [];
 let editingId       = null;
 let activeFilter    = "all";
 let pendingDeleteId = null;
+let reorderMode     = false;
+let reorderQueue    = [];   // IDs in the order the user clicks
 let lastPrintOrder  = JSON.parse(localStorage.getItem("lastPrintOrder") || "[]");
 const expandedIds   = new Set();
 
@@ -294,15 +296,21 @@ const STATUS_OPTIONS = [
 // ─── Open case row ────────────────────────────────────────────────────────────
 function buildRow(c) {
   const row = document.createElement("div");
-  row.className = `list-row list-row--${c.status}${c.checked ? " list-row--checked" : ""}`;
-  row.setAttribute("draggable", "true");
+  const qPos = reorderQueue.indexOf(c.id);
+  row.className = `list-row list-row--${c.status}${c.checked ? " list-row--checked" : ""}${reorderMode ? (qPos >= 0 ? " reorder-selected" : " reorder-pending") : ""}`;
+  row.setAttribute("draggable", !reorderMode);
   row.dataset.id = c.id;
 
   const selectOptions = STATUS_OPTIONS.map((o) =>
     `<option value="${o.value}"${c.status === o.value ? " selected" : ""}>${o.label}</option>`
   ).join("");
 
+  const reorderBadge = reorderMode
+    ? `<div class="reorder-badge">${qPos >= 0 ? qPos + 1 : ""}</div>`
+    : "";
+
   row.innerHTML = `
+    ${reorderBadge}
     <div class="list-row__handle" title="Arrastar para reordenar">⠿</div>
     <button class="list-row__check" data-action="toggle-check" title="Marcar como checado">✓</button>
     <div class="list-row__fap" title="Clique para copiar FAP" style="cursor:pointer;">${escHtml(c.fap)}</div>
@@ -374,6 +382,13 @@ function buildRow(c) {
   });
 
   row.addEventListener("click", (e) => {
+    if (reorderMode) {
+      const idx = reorderQueue.indexOf(c.id);
+      if (idx >= 0) reorderQueue.splice(idx, 1);
+      else reorderQueue.push(c.id);
+      render();
+      return;
+    }
     if (e.target.closest(".list-row__detail") || e.target.closest(".list-row__handle") || e.target.closest(".status-select") || e.target.closest(".list-row__fap") || e.target.closest(".copy-nome-btn")) return;
     toggleRowDetail(row);
   });
@@ -960,6 +975,51 @@ Se não encontrar casos, retorne [].`;
     });
   }
 })();
+
+// ─── Reorder mode ────────────────────────────────────────────────────────────
+const reorderModeBtn    = document.getElementById("reorder-mode-btn");
+const reorderConfirmBtn = document.getElementById("reorder-confirm-btn");
+const reorderCancelBtn  = document.getElementById("reorder-cancel-btn");
+
+function enterReorderMode() {
+  reorderMode  = true;
+  reorderQueue = [];
+  reorderModeBtn.hidden    = true;
+  reorderConfirmBtn.hidden = false;
+  reorderCancelBtn.hidden  = false;
+  caseListEl.classList.add("reorder-mode");
+  render();
+}
+
+function exitReorderMode() {
+  reorderMode  = false;
+  reorderQueue = [];
+  reorderModeBtn.hidden    = false;
+  reorderConfirmBtn.hidden = true;
+  reorderCancelBtn.hidden  = true;
+  caseListEl.classList.remove("reorder-mode");
+  render();
+}
+
+reorderModeBtn.addEventListener("click", enterReorderMode);
+reorderCancelBtn.addEventListener("click", exitReorderMode);
+
+reorderConfirmBtn.addEventListener("click", async () => {
+  const open = allCases.filter((c) => !c.liberado);
+  // Cases clicked first; unclicked cases preserve relative order at the end
+  const unclicked = open.filter((c) => !reorderQueue.includes(c.id))
+                        .sort((a, b) => (a.listOrder ?? 0) - (b.listOrder ?? 0));
+  const ordered = [...reorderQueue.map((id) => open.find((c) => c.id === id)).filter(Boolean), ...unclicked];
+  try {
+    const batch = writeBatch(db);
+    ordered.forEach((c, i) => batch.update(caseDoc(c.id), { listOrder: (i + 1) * 1000 }));
+    await batch.commit();
+    showToast("Ordem salva.");
+  } catch (err) {
+    showToast("Erro ao salvar ordem: " + err.message, "error");
+  }
+  exitReorderMode();
+});
 
 // ─── Sort by print order ─────────────────────────────────────────────────────
 document.getElementById("sort-by-print-btn").addEventListener("click", async () => {
