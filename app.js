@@ -1315,6 +1315,64 @@ document.getElementById("whatsapp-btn").addEventListener("click", () => {
   });
 });
 
+// ─── WhatsApp report ─────────────────────────────────────────────────────────
+document.getElementById("whatsapp-report-btn").addEventListener("click", () => {
+  const rows  = [...document.querySelectorAll("#case-list .list-row")];
+  const items = rows.map((row) => allCases.find((x) => x.id === row.dataset.id)).filter(Boolean);
+
+  if (items.length === 0) { showToast("Nenhum caso para exportar.", "error"); return; }
+
+  const prontos   = items.filter((c) => c.status === "laudado");
+  const pendencia = items.filter((c) => c.status === "pendencia");
+  const duvida    = items.filter((c) => !["laudado", "pendencia"].includes(c.status));
+
+  function linhaCase(c) {
+    const partes = [c.fap ?? "", c.nome ?? ""];
+    const upd = lastLogText(c);
+    if (upd) partes.push(upd);
+    return partes.join(" - ");
+  }
+
+  const resumoParts = [];
+  if (prontos.length)   resumoParts.push(`${prontos.length} prontos pra liberação`);
+  if (pendencia.length) resumoParts.push(`${pendencia.length} com pendência`);
+  if (duvida.length)    resumoParts.push(`${duvida.length} em dúvida`);
+
+  const linhas = [];
+  linhas.push(`${items.length} casos no monitor.`);
+  linhas.push(resumoParts.join(" - "));
+
+  if (prontos.length) {
+    linhas.push("");
+    linhas.push("*Prontos pra liberação:*");
+    prontos.forEach((c) => linhas.push(linhaCase(c)));
+  }
+  if (pendencia.length) {
+    linhas.push("");
+    linhas.push("*Com pendência:*");
+    pendencia.forEach((c) => linhas.push(linhaCase(c) + " ❗"));
+  }
+  if (duvida.length) {
+    linhas.push("");
+    linhas.push("*Em dúvida:*");
+    duvida.forEach((c) => linhas.push(linhaCase(c)));
+  }
+
+  const texto = linhas.join("\n");
+  navigator.clipboard.writeText(texto).then(() => {
+    showToast("Relatório copiado! Cole no WhatsApp.");
+  }).catch(() => {
+    const ta = document.createElement("textarea");
+    ta.value = texto;
+    ta.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80vw;height:60vh;z-index:9999;padding:12px;font-size:13px;border-radius:8px;border:1px solid #cbd5e1;";
+    document.body.appendChild(ta);
+    ta.select();
+    const close = (e) => { if (e.target !== ta) { ta.remove(); document.removeEventListener("click", close); } };
+    setTimeout(() => document.addEventListener("click", close), 100);
+    showToast("Copie o texto da caixa que abriu.", "warning");
+  });
+});
+
 function clip(str, max) {
   if (!str) return "";
   return str.length > max ? str.slice(0, max - 1) + "…" : str;
