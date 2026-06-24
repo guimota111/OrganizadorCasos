@@ -419,6 +419,13 @@ function toggleRowDetail(row) {
   if (detail.hidden) {
     openRowDetail(row);
   } else {
+    // Auto-save resumo clínico on collapse if changed
+    const ta = row.querySelector(".ie-resumo");
+    const c  = allCases.find((x) => x.id === id);
+    if (ta && c && ta.value.trim() !== (c.resumo ?? "").trim()) {
+      updateDoc(caseDoc(id), { resumo: ta.value.trim(), updatedAt: serverTimestamp() })
+        .catch(() => {});
+    }
     detail.hidden = true;
     row.classList.remove("list-row--expanded");
     row.querySelector(".list-row__chevron").style.transform = "";
@@ -446,12 +453,13 @@ async function handleRowAction(e, c, row) {
     flash(row, "✅ Salvo");
 
   } else if (action === "add-log") {
-    const input = row.querySelector(".ie-log-new");
-    const text  = input.value.trim();
+    const input  = row.querySelector(".ie-log-new");
+    const text   = input.value.trim();
     if (!text) return;
-    const entry    = { text, ts: Date.now() };
-    const newLog   = [...getLog(c), entry];
-    await updateDoc(caseDoc(c.id), { resumoLog: newLog, resumoLinha: text, updatedAt: serverTimestamp() });
+    const entry   = { text, ts: Date.now() };
+    const newLog  = [...getLog(c), entry];
+    const resumo  = row.querySelector(".ie-resumo")?.value.trim() ?? c.resumo ?? "";
+    await updateDoc(caseDoc(c.id), { resumoLog: newLog, resumoLinha: text, resumo, updatedAt: serverTimestamp() });
     input.value = "";
 
   } else if (action === "liberar") {
