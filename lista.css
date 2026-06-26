@@ -152,6 +152,21 @@
 .list-row:hover .copy-nome-btn,
 .list-row--expanded .copy-nome-btn { opacity: 1; }
 
+.tipo-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.tipo-badge--imuno {
+  background: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #c4b5fd;
+}
+
 .list-row__nome {
   font-size: 14px;
   font-weight: 700;

@@ -313,7 +313,7 @@ function buildRow(c) {
     <button class="list-row__check" data-action="toggle-check" title="Marcar como checado">✓</button>
     <div class="list-row__fap" title="Clique para copiar FAP" style="cursor:pointer;">${escHtml(c.fap)}</div>
     <div class="list-row__main">
-      <div class="list-row__nome">${escHtml(c.nome)}<button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button></div>
+      <div class="list-row__nome">${escHtml(c.nome)}<button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button>${c.tipo === "imuno" ? `<span class="tipo-badge tipo-badge--imuno">IHQ</span>` : ""}</div>
       ${lastLogText(c) ? `<div class="list-row__resumo-linha">${escHtml(lastLogText(c))}</div>` : ""}
     </div>
     <select class="status-select status-select--${c.status}" data-action="change-status">${selectOptions}</select>
@@ -329,6 +329,13 @@ function buildRow(c) {
           <div class="inline-edit__field">
             <label>FAP</label>
             <input type="text" class="ie-fap" value="${escHtml(c.fap)}" />
+          </div>
+          <div class="inline-edit__field" style="max-width:140px;">
+            <label>Tipo</label>
+            <select class="ie-tipo">
+              <option value="he"${(c.tipo ?? "he") === "he" ? " selected" : ""}>HE</option>
+              <option value="imuno"${c.tipo === "imuno" ? " selected" : ""}>Imuno (IHQ)</option>
+            </select>
           </div>
         </div>
         <div class="inline-edit__field">
@@ -393,6 +400,12 @@ function buildRow(c) {
   row.querySelectorAll("[data-action]").forEach((btn) =>
     btn.addEventListener("click", (e) => handleRowAction(e, c, row))
   );
+  // Tipo dropdown change (HE / Imuno)
+  const tipoSel = row.querySelector(".ie-tipo");
+  if (tipoSel) tipoSel.addEventListener("change", async (e) => {
+    e.stopPropagation();
+    await updateDoc(caseDoc(c.id), { tipo: e.target.value, updatedAt: serverTimestamp() });
+  });
   // Status dropdown change
   row.querySelector(".status-select").addEventListener("change", async (e) => {
     e.stopPropagation();
@@ -461,7 +474,12 @@ async function handleRowAction(e, c, row) {
     input.value = "";
 
   } else if (action === "liberar") {
-    await updateDoc(caseDoc(c.id), { liberado: true, checked: false, updatedAt: serverTimestamp() });
+    if ((c.tipo ?? "he") === "he") {
+      // HE: pergunta se tem IHQ pendente antes de liberar
+      askImuno(c);
+    } else {
+      await updateDoc(caseDoc(c.id), { liberado: true, checked: false, updatedAt: serverTimestamp() });
+    }
 
   } else if (action === "reclamacao") {
     const panel = row.querySelector(".reclamacao-panel");
@@ -613,6 +631,48 @@ confirmDelBtn.addEventListener("click", async () => {
 });
 cancelDelBtn.addEventListener("click", () => { pendingDeleteId = null; deleteModal.hidden = true; });
 deleteModal.addEventListener("click", (e) => { if (e.target === deleteModal) { pendingDeleteId = null; deleteModal.hidden = true; }});
+
+// ─── Imuno (IHQ) flow ─────────────────────────────────────────────────────────
+const imunoModal = document.getElementById("imuno-modal");
+const imunoModalMsg = document.getElementById("imuno-modal-msg");
+let pendingImunoId = null;
+
+function askImuno(c) {
+  pendingImunoId = c.id;
+  imunoModalMsg.textContent = `Esse HE (${c.nome}) tem Imuno (IHQ) pendente?`;
+  imunoModal.hidden = false;
+}
+
+// Não tem IHQ → libera normalmente
+document.getElementById("imuno-no").addEventListener("click", async () => {
+  if (!pendingImunoId) return;
+  await updateDoc(caseDoc(pendingImunoId), { liberado: true, checked: false, updatedAt: serverTimestamp() });
+  pendingImunoId = null;
+  imunoModal.hidden = true;
+});
+
+// Tem IHQ → vira pendência, adiciona linha no log e continua ativo
+document.getElementById("imuno-yes").addEventListener("click", async () => {
+  if (!pendingImunoId) return;
+  const c = allCases.find((x) => x.id === pendingImunoId);
+  if (c) {
+    const last = lastLogText(c);
+    const text = (last ? `${last} - aguarda IHQ` : "Aguarda IHQ").trim();
+    const newLog = [...getLog(c), { text, ts: Date.now() }];
+    await updateDoc(caseDoc(c.id), {
+      status: "pendencia",
+      tipo: "imuno",
+      checked: false,
+      resumoLog: newLog,
+      resumoLinha: text,
+      updatedAt: serverTimestamp(),
+    });
+  }
+  pendingImunoId = null;
+  imunoModal.hidden = true;
+});
+
+imunoModal.addEventListener("click", (e) => { if (e.target === imunoModal) { pendingImunoId = null; imunoModal.hidden = true; }});
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 let toastTimer;
