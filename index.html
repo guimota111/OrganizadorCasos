@@ -164,12 +164,11 @@
         <button class="filter-btn" data-filter="pendencia">⏳ Pendência <span class="filter-count" id="cnt-f-pendencia">—</span></button>
         <button class="filter-btn" data-filter="outros">🔵 Outros <span class="filter-count" id="cnt-f-outros">—</span></button>
       </div>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <button class="btn btn--ghost btn--sm" id="reorder-mode-btn">🔢 Reordenar</button>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <button class="btn btn--ghost btn--sm" id="sort-open-btn">⇅ Ordenar</button>
         <button class="btn btn--primary btn--sm" id="reorder-confirm-btn" hidden>✓ Confirmar ordem</button>
         <button class="btn btn--ghost btn--sm" id="reorder-cancel-btn" hidden>✕ Cancelar</button>
         <button class="btn btn--ghost btn--sm" id="import-print-btn">📸 Importar do print</button>
-        <button class="btn btn--ghost btn--sm" id="sort-by-print-btn" disabled title="Ordena os casos conforme a ordem do último print importado">↕ Ordenar por print</button>
         <button class="btn btn--ghost btn--sm" id="clear-checks-btn" title="Remove todos os ✓ de OK">✕ Limpar OK</button>
         <button class="btn btn--ghost btn--sm" id="export-img-btn">📷 Gerar imagem</button>
         <button class="btn btn--ghost btn--sm" id="whatsapp-btn">💬 Lista WhatsApp</button>
@@ -270,6 +269,48 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ── Modal ordenação ── -->
+  <div class="modal-overlay" id="sort-modal" hidden role="dialog" aria-modal="true">
+    <div class="modal" style="min-width:340px;max-width:480px;width:100%;">
+      <!-- Escolha do método -->
+      <div id="sort-step-choose">
+        <h2 style="margin-bottom:16px;">⇅ Ordenar casos</h2>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="btn btn--ghost sort-method-btn" id="sort-opt-print">
+            <span style="font-size:18px;">↕</span>
+            <span><strong>Ordenar por print</strong><br><small>Usa a ordem do último print importado</small></span>
+          </button>
+          <button class="btn btn--ghost sort-method-btn" id="sort-opt-click">
+            <span style="font-size:18px;">🔢</span>
+            <span><strong>Clicar na ordem</strong><br><small>Clique nos casos um por um para definir a posição</small></span>
+          </button>
+          <button class="btn btn--ghost sort-method-btn" id="sort-opt-type">
+            <span style="font-size:18px;">⌨️</span>
+            <span><strong>Digitar nome</strong><br><small>Digite o nome ou FAP para definir a ordem</small></span>
+          </button>
+        </div>
+        <div class="modal__actions" style="margin-top:16px;">
+          <button class="btn btn--ghost" id="sort-modal-close">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Modo digitar -->
+      <div id="sort-step-type" hidden>
+        <h2 style="margin-bottom:10px;">⌨️ Digitar ordem</h2>
+        <div id="sort-type-queue" style="margin-bottom:10px;min-height:32px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <input id="sort-type-input" type="text" class="twfc-input" placeholder="Nome ou FAP…" style="flex:1;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;" autocomplete="off" />
+          <button class="btn btn--ghost btn--sm" id="sort-type-undo" title="Desfazer última seleção">↩</button>
+        </div>
+        <div id="sort-type-suggestions" style="max-height:220px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;"></div>
+        <div class="modal__actions" style="margin-top:12px;">
+          <button class="btn btn--ghost" id="sort-type-cancel">Cancelar</button>
+          <button class="btn btn--primary" id="sort-type-confirm">✓ Confirmar ordem</button>
+        </div>
+      </div>
     </div>
   </div>
 

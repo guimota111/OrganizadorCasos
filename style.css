@@ -620,6 +620,34 @@ body {
 .modal p  { font-size: 14px; color: var(--clr-text-muted); margin-bottom: 20px; }
 .modal__actions { display: flex; gap: 10px; justify-content: flex-end; }
 
+/* ── Sort modal ─────────────────────────────────────────────────────────────── */
+.sort-method-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  width: 100%;
+}
+.sort-method-btn:hover { background: #f0f5ff; border-color: var(--clr-primary); }
+.sort-method-btn small { color: var(--clr-text-muted); font-size: 12px; }
+
+.type-queue-chip {
+  display: inline-flex;
+  align-items: center;
+  background: #eff6ff;
+  color: var(--clr-primary);
+  border: 1px solid #bfdbfe;
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.type-suggestion--first { background: #eff6ff; }
+
 /* ── Login screen ───────────────────────────────────────────────────────────── */
 #login-screen {
   min-height: 100vh;

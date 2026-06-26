@@ -984,59 +984,27 @@ Se não encontrar casos, retorne [].`;
   }
 })();
 
-// ─── Reorder mode ────────────────────────────────────────────────────────────
-const reorderModeBtn    = document.getElementById("reorder-mode-btn");
+// ─── Sort modal ──────────────────────────────────────────────────────────────
+const sortModal       = document.getElementById("sort-modal");
+const sortStepChoose  = document.getElementById("sort-step-choose");
+const sortStepType    = document.getElementById("sort-step-type");
 const reorderConfirmBtn = document.getElementById("reorder-confirm-btn");
 const reorderCancelBtn  = document.getElementById("reorder-cancel-btn");
 
-function enterReorderMode() {
-  reorderMode  = true;
-  reorderQueue = [];
-  reorderModeBtn.hidden    = true;
-  reorderConfirmBtn.hidden = false;
-  reorderCancelBtn.hidden  = false;
-  caseListEl.classList.add("reorder-mode");
-  render();
-}
-
-function exitReorderMode() {
-  reorderMode  = false;
-  reorderQueue = [];
-  reorderModeBtn.hidden    = false;
-  reorderConfirmBtn.hidden = true;
-  reorderCancelBtn.hidden  = true;
-  caseListEl.classList.remove("reorder-mode");
-  render();
-}
-
-reorderModeBtn.addEventListener("click", enterReorderMode);
-reorderCancelBtn.addEventListener("click", exitReorderMode);
-
-reorderConfirmBtn.addEventListener("click", async () => {
-  const open = allCases.filter((c) => !c.liberado);
-  // Cases clicked first; unclicked cases preserve relative order at the end
-  const unclicked = open.filter((c) => !reorderQueue.includes(c.id))
-                        .sort((a, b) => (a.listOrder ?? 0) - (b.listOrder ?? 0));
-  const ordered = [...reorderQueue.map((id) => open.find((c) => c.id === id)).filter(Boolean), ...unclicked];
-  try {
-    const batch = writeBatch(db);
-    ordered.forEach((c, i) => batch.update(caseDoc(c.id), { listOrder: (i + 1) * 1000 }));
-    await batch.commit();
-    showToast("Ordem salva.");
-  } catch (err) {
-    showToast("Erro ao salvar ordem: " + err.message, "error");
-  }
-  exitReorderMode();
+document.getElementById("sort-open-btn").addEventListener("click", () => {
+  sortStepChoose.hidden = false;
+  sortStepType.hidden   = true;
+  sortModal.hidden = false;
 });
+document.getElementById("sort-modal-close").addEventListener("click", () => { sortModal.hidden = true; });
+sortModal.addEventListener("click", (e) => { if (e.target === sortModal) sortModal.hidden = true; });
 
-// ─── Sort by print order ─────────────────────────────────────────────────────
-document.getElementById("sort-by-print-btn").addEventListener("click", async () => {
+// ── Option 1: sort by print
+document.getElementById("sort-opt-print").addEventListener("click", async () => {
+  sortModal.hidden = true;
   if (!lastPrintOrder.length) { showToast("Nenhum print importado ainda.", "error"); return; }
   const open = allCases.filter((c) => !c.liberado);
-  const printIdx = (c) => {
-    const i = lastPrintOrder.indexOf(normFap(c.fap));
-    return i === -1 ? Infinity : i;
-  };
+  const printIdx = (c) => { const i = lastPrintOrder.indexOf(normFap(c.fap)); return i === -1 ? Infinity : i; };
   const matched = open.filter((c) => printIdx(c) !== Infinity);
   const sorted  = [...open].sort((a, b) => printIdx(a) - printIdx(b));
   try {
@@ -1045,14 +1013,149 @@ document.getElementById("sort-by-print-btn").addEventListener("click", async () 
     await batch.commit();
     const notFound = lastPrintOrder.filter((fap) => !open.some((c) => normFap(c.fap) === fap));
     if (notFound.length) {
-      showToast(`Reordenado. ${matched.length} casos alinhados ao print. ${notFound.length} FAPs do print não encontradas na lista.`, "warning");
+      showToast(`Reordenado. ${matched.length} alinhados. ${notFound.length} FAPs não encontradas.`, "warning");
     } else {
       showToast(`Casos reordenados conforme o print (${matched.length} casos).`);
     }
-  } catch (err) {
-    showToast("Erro ao reordenar: " + err.message, "error");
-    console.error("sort error:", err);
+  } catch (err) { showToast("Erro ao reordenar: " + err.message, "error"); }
+});
+
+// ── Option 2: click-to-reorder
+function enterReorderMode() {
+  sortModal.hidden = true;
+  reorderMode  = true;
+  reorderQueue = [];
+  document.getElementById("sort-open-btn").hidden = true;
+  reorderConfirmBtn.hidden = false;
+  reorderCancelBtn.hidden  = false;
+  caseListEl.classList.add("reorder-mode");
+  render();
+}
+function exitReorderMode() {
+  reorderMode  = false;
+  reorderQueue = [];
+  document.getElementById("sort-open-btn").hidden = false;
+  reorderConfirmBtn.hidden = true;
+  reorderCancelBtn.hidden  = true;
+  caseListEl.classList.remove("reorder-mode");
+  render();
+}
+document.getElementById("sort-opt-click").addEventListener("click", enterReorderMode);
+reorderCancelBtn.addEventListener("click", exitReorderMode);
+reorderConfirmBtn.addEventListener("click", async () => {
+  const open = allCases.filter((c) => !c.liberado);
+  const unclicked = open.filter((c) => !reorderQueue.includes(c.id))
+                        .sort((a, b) => (a.listOrder ?? 0) - (b.listOrder ?? 0));
+  const ordered = [...reorderQueue.map((id) => open.find((c) => c.id === id)).filter(Boolean), ...unclicked];
+  try {
+    const batch = writeBatch(db);
+    ordered.forEach((c, i) => batch.update(caseDoc(c.id), { listOrder: (i + 1) * 1000 }));
+    await batch.commit();
+    showToast("Ordem salva.");
+  } catch (err) { showToast("Erro ao salvar ordem: " + err.message, "error"); }
+  exitReorderMode();
+});
+
+// ── Option 3: type-to-order
+let typeQueue = [];   // IDs in order selected by typing
+
+function openTypeMode() {
+  sortStepChoose.hidden = true;
+  sortStepType.hidden   = false;
+  typeQueue = [];
+  renderTypeQueue();
+  renderTypeSuggestions("");
+  setTimeout(() => document.getElementById("sort-type-input").focus(), 50);
+}
+
+function renderTypeQueue() {
+  const el = document.getElementById("sort-type-queue");
+  const open = allCases.filter((c) => !c.liberado);
+  if (!typeQueue.length) {
+    el.innerHTML = `<span style="font-size:12px;color:#94a3b8;">Nenhum caso selecionado ainda</span>`;
+    return;
   }
+  el.innerHTML = typeQueue.map((id, i) => {
+    const c = open.find((x) => x.id === id);
+    return `<span class="type-queue-chip">${i + 1}. ${escHtml(c?.nome ?? id)}</span>`;
+  }).join("");
+}
+
+function renderTypeSuggestions(query) {
+  const el   = document.getElementById("sort-type-suggestions");
+  const open = allCases.filter((c) => !c.liberado && !typeQueue.includes(c.id));
+  const q    = query.trim().toLowerCase();
+  const matches = q
+    ? open.filter((c) =>
+        (c.nome ?? "").toLowerCase().includes(q) ||
+        (c.fap  ?? "").replace(/\./g, "").includes(q.replace(/\./g, ""))
+      )
+    : open;
+
+  if (!matches.length) {
+    el.innerHTML = `<div style="padding:10px 12px;font-size:13px;color:#94a3b8;">${q ? "Nenhum caso encontrado." : "Todos os casos já foram selecionados."}</div>`;
+    return;
+  }
+  el.innerHTML = matches.map((c, i) => `
+    <div class="type-suggestion${i === 0 ? " type-suggestion--first" : ""}" data-id="${c.id}" style="padding:8px 12px;cursor:pointer;font-size:13px;display:flex;gap:10px;align-items:center;${i > 0 ? "border-top:1px solid #f1f5f9;" : ""}">
+      <span style="font-weight:700;color:var(--clr-primary);min-width:110px;">${escHtml(c.fap)}</span>
+      <span>${escHtml(c.nome)}</span>
+    </div>`).join("");
+
+  el.querySelectorAll(".type-suggestion").forEach((div) => {
+    div.addEventListener("click", () => selectTypeCase(div.dataset.id));
+    div.addEventListener("mouseenter", () => {
+      el.querySelectorAll(".type-suggestion").forEach((d) => d.classList.remove("type-suggestion--first"));
+      div.classList.add("type-suggestion--first");
+    });
+  });
+}
+
+function selectTypeCase(id) {
+  typeQueue.push(id);
+  const input = document.getElementById("sort-type-input");
+  input.value = "";
+  renderTypeQueue();
+  renderTypeSuggestions("");
+  input.focus();
+}
+
+document.getElementById("sort-opt-type").addEventListener("click", openTypeMode);
+
+document.getElementById("sort-type-input").addEventListener("input", (e) => {
+  renderTypeSuggestions(e.target.value);
+});
+
+document.getElementById("sort-type-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const first = document.querySelector(".type-suggestion--first");
+    if (first) selectTypeCase(first.dataset.id);
+  }
+});
+
+document.getElementById("sort-type-undo").addEventListener("click", () => {
+  if (!typeQueue.length) return;
+  typeQueue.pop();
+  renderTypeQueue();
+  renderTypeSuggestions(document.getElementById("sort-type-input").value);
+  document.getElementById("sort-type-input").focus();
+});
+
+document.getElementById("sort-type-cancel").addEventListener("click", () => { sortModal.hidden = true; });
+
+document.getElementById("sort-type-confirm").addEventListener("click", async () => {
+  const open = allCases.filter((c) => !c.liberado);
+  const unselected = open.filter((c) => !typeQueue.includes(c.id))
+                         .sort((a, b) => (a.listOrder ?? 0) - (b.listOrder ?? 0));
+  const ordered = [...typeQueue.map((id) => open.find((c) => c.id === id)).filter(Boolean), ...unselected];
+  try {
+    const batch = writeBatch(db);
+    ordered.forEach((c, i) => batch.update(caseDoc(c.id), { listOrder: (i + 1) * 1000 }));
+    await batch.commit();
+    showToast("Ordem salva.");
+  } catch (err) { showToast("Erro ao salvar ordem: " + err.message, "error"); }
+  sortModal.hidden = true;
 });
 
 function normFap(fap) {
