@@ -22,9 +22,7 @@ let reorderQueue    = [];   // IDs in the order the user clicks
 let lastPrintOrder  = JSON.parse(localStorage.getItem("lastPrintOrder") || "[]");
 const expandedIds   = new Set();
 
-if (lastPrintOrder.length) {
-  document.getElementById("sort-by-print-btn").disabled = false;
-}
+// lastPrintOrder restored from localStorage — sort button always available
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const form           = document.getElementById("case-form");
