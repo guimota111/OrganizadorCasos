@@ -1174,8 +1174,17 @@ document.getElementById("clear-checks-btn").addEventListener("click", async () =
   }
 });
 
+// ─── Export modal ────────────────────────────────────────────────────────────
+const exportModal = document.getElementById("export-modal");
+document.getElementById("export-open-btn").addEventListener("click", () => { exportModal.hidden = false; });
+document.getElementById("export-modal-close").addEventListener("click", () => { exportModal.hidden = true; });
+exportModal.addEventListener("click", (e) => { if (e.target === exportModal) exportModal.hidden = true; });
+document.getElementById("export-opt-img").addEventListener("click", () => { exportModal.hidden = true; exportImage(); });
+document.getElementById("export-opt-list").addEventListener("click", () => { exportModal.hidden = true; exportWhatsappList(); });
+document.getElementById("export-opt-report").addEventListener("click", () => { exportModal.hidden = true; exportWhatsappReport(); });
+
 // ─── Export image ────────────────────────────────────────────────────────────
-document.getElementById("export-img-btn").addEventListener("click", () => {
+function exportImage() {
   // Collect visible open cases in current order
   const rows = [...document.querySelectorAll("#case-list .list-row")];
   const items = rows.map((row) => {
@@ -1355,10 +1364,10 @@ document.getElementById("export-img-btn").addEventListener("click", () => {
   link.download = `casos-${new Date().toLocaleDateString("pt-BR").replace(/\//g, "-")}.png`;
   link.href = canvas.toDataURL("image/png");
   link.click();
-});
+}
 
 // ─── WhatsApp list ───────────────────────────────────────────────────────────
-document.getElementById("whatsapp-btn").addEventListener("click", () => {
+function exportWhatsappList() {
   const rows   = [...document.querySelectorAll("#case-list .list-row")];
   const items  = rows.map((row) => allCases.find((x) => x.id === row.dataset.id)).filter(Boolean);
 
@@ -1414,10 +1423,10 @@ document.getElementById("whatsapp-btn").addEventListener("click", () => {
     setTimeout(() => document.addEventListener("click", close), 100);
     showToast("Copie o texto da caixa que abriu.", "warning");
   });
-});
+}
 
 // ─── WhatsApp report ─────────────────────────────────────────────────────────
-document.getElementById("whatsapp-report-btn").addEventListener("click", () => {
+function exportWhatsappReport() {
   const rows  = [...document.querySelectorAll("#case-list .list-row")];
   const items = rows.map((row) => allCases.find((x) => x.id === row.dataset.id)).filter(Boolean);
 
@@ -1472,7 +1481,7 @@ document.getElementById("whatsapp-report-btn").addEventListener("click", () => {
     setTimeout(() => document.addEventListener("click", close), 100);
     showToast("Copie o texto da caixa que abriu.", "warning");
   });
-});
+}
 
 function clip(str, max) {
   if (!str) return "";

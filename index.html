@@ -170,9 +170,7 @@
         <button class="btn btn--ghost btn--sm" id="reorder-cancel-btn" hidden>✕ Cancelar</button>
         <button class="btn btn--ghost btn--sm" id="import-print-btn">📸 Importar do print</button>
         <button class="btn btn--ghost btn--sm" id="clear-checks-btn" title="Remove todos os ✓ de OK">✕ Limpar OK</button>
-        <button class="btn btn--ghost btn--sm" id="export-img-btn">📷 Gerar imagem</button>
-        <button class="btn btn--ghost btn--sm" id="whatsapp-btn">💬 Lista WhatsApp</button>
-        <button class="btn btn--ghost btn--sm" id="whatsapp-report-btn">📊 Relatório WhatsApp</button>
+        <button class="btn btn--ghost btn--sm" id="export-open-btn">📤 Exportar</button>
         <p class="list-toolbar__hint">Arraste as linhas para reordenar</p>
       </div>
     </div>
@@ -310,6 +308,30 @@
           <button class="btn btn--ghost" id="sort-type-cancel">Cancelar</button>
           <button class="btn btn--primary" id="sort-type-confirm">✓ Confirmar ordem</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal exportação ── -->
+  <div class="modal-overlay" id="export-modal" hidden role="dialog" aria-modal="true">
+    <div class="modal" style="min-width:340px;max-width:480px;width:100%;">
+      <h2 style="margin-bottom:16px;">📤 Exportar casos</h2>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button class="btn btn--ghost sort-method-btn" id="export-opt-img">
+          <span style="font-size:18px;">📷</span>
+          <span><strong>Gerar imagem</strong><br><small>Baixa um PNG com a lista de casos</small></span>
+        </button>
+        <button class="btn btn--ghost sort-method-btn" id="export-opt-list">
+          <span style="font-size:18px;">💬</span>
+          <span><strong>Lista WhatsApp</strong><br><small>Copia a lista formatada para colar no WhatsApp</small></span>
+        </button>
+        <button class="btn btn--ghost sort-method-btn" id="export-opt-report">
+          <span style="font-size:18px;">📊</span>
+          <span><strong>Relatório WhatsApp</strong><br><small>Copia um resumo agrupado por status</small></span>
+        </button>
+      </div>
+      <div class="modal__actions" style="margin-top:16px;">
+        <button class="btn btn--ghost" id="export-modal-close">Cancelar</button>
       </div>
     </div>
   </div>
