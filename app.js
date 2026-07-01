@@ -872,7 +872,6 @@ Se não encontrar casos, retorne [].`;
 
       lastPrintOrder = extracted.map((c) => normFap(c.fap));
       localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
-      document.getElementById("sort-by-print-btn").disabled = false;
       showResults(extracted);
     } catch (err) {
       showStep(stepUpload);
