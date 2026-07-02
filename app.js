@@ -716,6 +716,9 @@ function flash(row, msg) {
   const newLabel        = document.getElementById("import-new-label");
   const existingLabel   = document.getElementById("import-existing-label");
   const probableLabel   = document.getElementById("import-probable-label");
+  const reopenList      = document.getElementById("import-reopen-list");
+  const reopenSection   = document.getElementById("import-reopen-section");
+  const reopenLabel     = document.getElementById("import-reopen-label");
   const confirmBtn     = document.getElementById("import-confirm-btn");
 
   let selectedFile = null;
@@ -913,21 +916,32 @@ Se não encontrar casos, retorne [].`;
     return diff <= 2;
   }
 
+  // Released case with a similar name (different FAP) — candidate for reopening
+  function findReleasedMatch(c) {
+    const nome = normNome(c.nome);
+    if (!nome) return null;
+    return allCases.find((ex) => ex.liberado && normNome(ex.nome) && nameSimilar(nome, normNome(ex.nome))) ?? null;
+  }
+
   function showResults(extracted) {
     const novos      = [];
     const jaExistem  = [];
-    const provaveis  = [];   // name match but FAP slightly different
+    const provaveis  = [];   // name match but FAP slightly different (open cases)
+    const reaberturas = [];  // name match in released cases → offer to reopen
 
     for (const c of extracted) {
       const dup = findDuplicate(c);
-      if (!dup)                  novos.push(c);
-      else if (dup.reason === "fap") jaExistem.push({ c, match: dup.match });
-      else                       provaveis.push({ c, match: dup.match });
+      if (dup && dup.reason === "fap") { jaExistem.push({ c, match: dup.match }); continue; }
+      if (dup && dup.reason === "nome" && !dup.match.liberado) { provaveis.push({ c, match: dup.match }); continue; }
+      const rel = findReleasedMatch(c);
+      if (rel) { reaberturas.push({ c, match: rel }); continue; }
+      novos.push(c);
     }
 
     newList.innerHTML      = "";
     existingList.innerHTML = "";
     probableList.innerHTML = "";
+    reopenList.innerHTML   = "";
 
     if (novos.length === 0) {
       newList.innerHTML = `<p style="font-size:13px;color:var(--clr-text-muted);padding:8px 0;">Nenhum caso novo encontrado.</p>`;
@@ -969,6 +983,27 @@ Se não encontrar casos, retorne [].`;
       probableSection.hidden = true;
     }
 
+    // Reaberturas — nome parecido na lista de liberados
+    if (reaberturas.length > 0) {
+      reopenSection.hidden = false;
+      reopenLabel.textContent = `${reaberturas.length} possível reabertura${reaberturas.length !== 1 ? "s" : ""} (nome já foi liberado)`;
+      reaberturas.forEach(({ c, match }) => {
+        const row = document.createElement("div");
+        row.className = "import-case-row import-case-row--reopen";
+        row.innerHTML = `
+          <input type="checkbox" style="flex-shrink:0;accent-color:#7c3aed;width:16px;height:16px;" />
+          <span class="import-case-row__fap" title="Nova FAP no print">${escHtml(c.fap)}</span>
+          <span class="import-case-row__nome">${escHtml(c.nome)}</span>
+          <span style="font-size:11px;color:#6d28d9;margin-left:4px;" title="Caso liberado com este nome">liberado: ${escHtml(match.nome)} (${escHtml(match.fap)})</span>`;
+        row.dataset.fap     = c.fap;
+        row.dataset.nome    = c.nome;
+        row.dataset.matchId = match.id;
+        reopenList.appendChild(row);
+      });
+    } else {
+      reopenSection.hidden = true;
+    }
+
     if (jaExistem.length > 0) {
       existingSection.hidden = false;
       existingLabel.textContent = `${jaExistem.length} já existe${jaExistem.length !== 1 ? "m" : ""} no organizador`;
@@ -997,7 +1032,8 @@ Se não encontrar casos, retorne [].`;
       ...newList.querySelectorAll(".import-case-row input:checked"),
       ...probableList.querySelectorAll(".import-case-row input:checked"),
     ];
-    if (checked.length === 0) { showToast("Nenhum caso selecionado.", "error"); return; }
+    const reopenChecked = [...reopenList.querySelectorAll(".import-case-row input:checked")];
+    if (checked.length === 0 && reopenChecked.length === 0) { showToast("Nenhum caso selecionado.", "error"); return; }
 
     confirmBtn.disabled = true;
     confirmBtn.textContent = "Importando…";
@@ -1007,8 +1043,32 @@ Se não encontrar casos, retorne [].`;
         .filter((c) => !c.liberado)
         .reduce((m, c) => Math.max(m, c.listOrder ?? c.sortOrder ?? 0), 0);
 
-      for (let i = 0; i < checked.length; i++) {
-        const r = checked[i].closest(".import-case-row");
+      let order = maxOrder;
+
+      // Reaberturas — reabre caso liberado com a nova FAP, preservando dados clínicos
+      for (const chk of reopenChecked) {
+        const r     = chk.closest(".import-case-row");
+        const match = allCases.find((c) => c.id === r.dataset.matchId);
+        if (!match) continue;
+        order += 1000;
+        const text   = `Caso reaberto com nova FAP ${r.dataset.fap}`;
+        const newLog = [...getLog(match), { text, ts: Date.now() }];
+        await updateDoc(caseDoc(match.id), {
+          fap:         r.dataset.fap,
+          liberado:    false,
+          checked:     false,
+          status:      "nao-visto",
+          resumoLog:   newLog,
+          resumoLinha: text,
+          listOrder:   order,
+          updatedAt:   serverTimestamp(),
+        });
+      }
+
+      // Casos novos
+      for (const chk of checked) {
+        const r = chk.closest(".import-case-row");
+        order += 1000;
         await addDoc(casesCol(), {
           nome:        r.dataset.nome,
           fap:         r.dataset.fap,
@@ -1016,14 +1076,18 @@ Se não encontrar casos, retorne [].`;
           liberado:    false,
           resumoLinha: "",
           resumo:      "",
-          listOrder:   maxOrder + (i + 1) * 1000,
+          listOrder:   order,
           createdAt:   serverTimestamp(),
           updatedAt:   serverTimestamp(),
         });
       }
 
       closeModal();
-      showToast(`${checked.length} caso${checked.length !== 1 ? "s" : ""} importado${checked.length !== 1 ? "s" : ""}.`);
+      const total = checked.length + reopenChecked.length;
+      const partes = [];
+      if (checked.length) partes.push(`${checked.length} importado${checked.length !== 1 ? "s" : ""}`);
+      if (reopenChecked.length) partes.push(`${reopenChecked.length} reaberto${reopenChecked.length !== 1 ? "s" : ""}`);
+      showToast(partes.join(" e ") + ".");
     } catch (err) {
       showToast("Erro ao importar: " + err.message, "error");
       confirmBtn.disabled = false;

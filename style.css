@@ -727,6 +727,7 @@ body {
 }
 .import-section-label--new      { color: var(--clr-primary); }
 .import-section-label--probable { color: #92400e; }
+.import-section-label--reopen   { color: #6d28d9; }
 .import-section-label--existing { color: var(--clr-text-muted); }
 
 .import-case-row {
@@ -746,6 +747,11 @@ body {
 .import-case-row--probable {
   background: #fffbeb;
   border: 1px solid #fcd34d;
+  border-radius: 6px;
+}
+.import-case-row--reopen {
+  background: #f5f3ff;
+  border: 1px solid #c4b5fd;
   border-radius: 6px;
 }
 .import-case-row__fap {
