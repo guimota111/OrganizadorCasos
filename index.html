@@ -168,7 +168,7 @@
         <button class="btn btn--ghost btn--sm" id="sort-open-btn">⇅ Ordenar</button>
         <button class="btn btn--primary btn--sm" id="reorder-confirm-btn" hidden>✓ Confirmar ordem</button>
         <button class="btn btn--ghost btn--sm" id="reorder-cancel-btn" hidden>✕ Cancelar</button>
-        <button class="btn btn--ghost btn--sm" id="import-print-btn">📸 Importar do print</button>
+        <button class="btn btn--ghost btn--sm" id="import-print-btn">📥 Importar</button>
         <button class="btn btn--ghost btn--sm" id="clear-checks-btn" title="Remove todos os ✓ de OK">✕ Limpar OK</button>
         <button class="btn btn--ghost btn--sm" id="export-open-btn">📤 Exportar</button>
         <p class="list-toolbar__hint">Arraste as linhas para reordenar</p>
@@ -208,6 +208,35 @@
   <!-- ── Modal importar do print ── -->
   <div class="modal-overlay" id="import-modal" hidden role="dialog" aria-modal="true">
     <div class="modal modal--wide">
+
+      <!-- Step: choose method -->
+      <div id="import-step-choose">
+        <h2 style="margin-bottom:16px;">📥 Importar casos</h2>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="btn btn--ghost sort-method-btn" id="import-opt-text">
+            <span style="font-size:18px;">📋</span>
+            <span><strong>Colar texto</strong><br><small>Cole a lista de casos (nome e FAP) — sem usar IA</small></span>
+          </button>
+          <button class="btn btn--ghost sort-method-btn" id="import-opt-print">
+            <span style="font-size:18px;">📸</span>
+            <span><strong>Enviar print</strong><br><small>Analisa uma imagem do monitor com IA</small></span>
+          </button>
+        </div>
+        <div class="modal__actions" style="margin-top:16px;">
+          <button class="btn btn--ghost" id="import-choose-cancel">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Step: paste text -->
+      <div id="import-step-text" hidden>
+        <h2>📋 Colar texto</h2>
+        <p>Cole a lista. Cada caso deve ter a linha com os números (a FAP são os 12 últimos dígitos) e a linha do nome logo abaixo.</p>
+        <textarea id="import-text-input" rows="10" placeholder="01:56970304122454&#10;MARIA DAS GRAÇAS&#10;RJ-26-163854&#10;..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:monospace;resize:vertical;"></textarea>
+        <div class="modal__actions" style="margin-top:16px;">
+          <button class="btn btn--ghost" id="import-text-back">← Voltar</button>
+          <button class="btn btn--primary" id="import-text-process">Processar</button>
+        </div>
+      </div>
 
       <!-- Step: API key -->
       <div id="import-step-key">

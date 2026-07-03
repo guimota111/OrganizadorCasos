@@ -697,6 +697,8 @@ function flash(row, msg) {
 // ─── Import from print ───────────────────────────────────────────────────────
 (function () {
   const importModal    = document.getElementById("import-modal");
+  const stepChoose     = document.getElementById("import-step-choose");
+  const stepText       = document.getElementById("import-step-text");
   const stepKey        = document.getElementById("import-step-key");
   const stepUpload     = document.getElementById("import-step-upload");
   const stepLoading    = document.getElementById("import-step-loading");
@@ -724,19 +726,65 @@ function flash(row, msg) {
   let selectedFile = null;
 
   function showStep(step) {
-    [stepKey, stepUpload, stepLoading, stepResults].forEach((s) => { s.hidden = true; });
+    [stepChoose, stepText, stepKey, stepUpload, stepLoading, stepResults].forEach((s) => { s.hidden = true; });
     step.hidden = false;
   }
 
   function openModal() {
     importModal.hidden = false;
-    const key = localStorage.getItem("anthropic-api-key");
-    showStep(key ? stepUpload : stepKey);
+    showStep(stepChoose);
     selectedFile = null;
     previewImg.hidden = true;
     analyzeBtn.disabled = true;
     dropzoneLabel.textContent = "Clique para selecionar imagem";
   }
+
+  // Choose method
+  document.getElementById("import-opt-text").addEventListener("click", () => {
+    document.getElementById("import-text-input").value = "";
+    showStep(stepText);
+  });
+  document.getElementById("import-opt-print").addEventListener("click", () => {
+    const key = localStorage.getItem("anthropic-api-key");
+    showStep(key ? stepUpload : stepKey);
+  });
+  document.getElementById("import-choose-cancel").addEventListener("click", closeModal);
+  document.getElementById("import-text-back").addEventListener("click", () => showStep(stepChoose));
+
+  // Parse pasted text — FAP = last 12 digits of the numbers line, name = next line
+  function parsePastedText(text) {
+    const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length);
+    const out = [];
+    for (let i = 0; i < lines.length; i++) {
+      const digits = lines[i].replace(/\D/g, "");
+      if (digits.length >= 12) {
+        const fap = digits.slice(-12);
+        // Nome = próxima linha que não seja outra linha de FAP
+        let nome = "";
+        for (let j = i + 1; j < lines.length; j++) {
+          if (lines[j].replace(/\D/g, "").length >= 12) break;
+          nome = lines[j];
+          break;
+        }
+        // Remove número de registro no fim do nome (ex.: "- 001209767" ou " 05005927")
+        nome = nome.replace(/\s*-?\s*\d{4,}\s*$/, "").trim();
+        if (nome) out.push({ nome, fap });
+      }
+    }
+    return out;
+  }
+
+  document.getElementById("import-text-process").addEventListener("click", () => {
+    const text = document.getElementById("import-text-input").value;
+    const extracted = parsePastedText(text);
+    if (!extracted.length) {
+      showToast("Nenhum caso reconhecido no texto colado.", "error");
+      return;
+    }
+    lastPrintOrder = extracted.map((c) => normFap(c.fap));
+    localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
+    showResults(extracted);
+  });
 
   function closeModal() {
     importModal.hidden = true;
@@ -1024,7 +1072,7 @@ Se não encontrar casos, retorne [].`;
   }
 
   // Back to upload
-  document.getElementById("import-results-back").addEventListener("click", () => showStep(stepUpload));
+  document.getElementById("import-results-back").addEventListener("click", () => showStep(stepChoose));
 
   // Confirm import
   confirmBtn.addEventListener("click", async () => {
