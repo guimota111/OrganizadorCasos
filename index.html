@@ -309,6 +309,14 @@
           <button class="btn btn--ghost btn--sm" id="sort-type-undo" title="Desfazer última seleção">↩</button>
         </div>
         <div id="sort-type-suggestions" style="max-height:220px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;"></div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px dashed #e2e8f0;">
+          <p style="font-size:12px;font-weight:600;color:var(--clr-text-muted);margin-bottom:6px;">➕ Adicionar caso novo já na ordem</p>
+          <div style="display:flex;gap:6px;">
+            <input id="sort-add-nome" type="text" placeholder="Nome do paciente" style="flex:1;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;" autocomplete="off" />
+            <input id="sort-add-fap" type="text" placeholder="FAP" style="width:130px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;" autocomplete="off" />
+            <button class="btn btn--ghost btn--sm" id="sort-add-btn" title="Adicionar caso">＋</button>
+          </div>
+        </div>
         <div class="modal__actions" style="margin-top:12px;">
           <button class="btn btn--ghost" id="sort-type-cancel">Cancelar</button>
           <button class="btn btn--primary" id="sort-type-confirm">✓ Confirmar ordem</button>

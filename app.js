@@ -1178,7 +1178,8 @@ reorderConfirmBtn.addEventListener("click", async () => {
 });
 
 // ── Option 3: type-to-order
-let typeQueue = [];   // IDs in order selected by typing
+let typeQueue = [];          // IDs in order selected by typing
+const typeAddedNames = {};   // id -> nome for cases created inside this mode
 
 function openTypeMode() {
   sortStepChoose.hidden = true;
@@ -1198,9 +1199,46 @@ function renderTypeQueue() {
   }
   el.innerHTML = typeQueue.map((id, i) => {
     const c = open.find((x) => x.id === id);
-    return `<span class="type-queue-chip">${i + 1}. ${escHtml(c?.nome ?? id)}</span>`;
+    const nome = c?.nome ?? typeAddedNames[id] ?? id;
+    return `<span class="type-queue-chip">${i + 1}. ${escHtml(nome)}</span>`;
   }).join("");
 }
+
+// Add a brand-new case and drop it straight into the order queue
+async function addNewCaseToQueue() {
+  const nomeEl = document.getElementById("sort-add-nome");
+  const fapEl  = document.getElementById("sort-add-fap");
+  const nome = nomeEl.value.trim();
+  const fap  = fapEl.value.trim();
+  if (!nome || !fap) { showToast("Preencha nome e FAP.", "error"); return; }
+  try {
+    const ref = await addDoc(casesCol(), {
+      nome, fap,
+      status:      "nao-visto",
+      liberado:    false,
+      resumoLinha: "",
+      resumo:      "",
+      resumoLog:   [],
+      listOrder:   0,   // definido no confirmar
+      createdAt:   serverTimestamp(),
+      updatedAt:   serverTimestamp(),
+    });
+    typeAddedNames[ref.id] = nome;
+    typeQueue.push(ref.id);
+    nomeEl.value = "";
+    fapEl.value  = "";
+    renderTypeQueue();
+    renderTypeSuggestions(document.getElementById("sort-type-input").value);
+    nomeEl.focus();
+  } catch (err) {
+    showToast("Erro ao adicionar: " + err.message, "error");
+  }
+}
+
+document.getElementById("sort-add-btn").addEventListener("click", addNewCaseToQueue);
+document.getElementById("sort-add-fap").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); addNewCaseToQueue(); }
+});
 
 function renderTypeSuggestions(query) {
   const el   = document.getElementById("sort-type-suggestions");
@@ -1267,12 +1305,14 @@ document.getElementById("sort-type-cancel").addEventListener("click", () => { so
 
 document.getElementById("sort-type-confirm").addEventListener("click", async () => {
   const open = allCases.filter((c) => !c.liberado);
-  const unselected = open.filter((c) => !typeQueue.includes(c.id))
-                         .sort((a, b) => (a.listOrder ?? 0) - (b.listOrder ?? 0));
-  const ordered = [...typeQueue.map((id) => open.find((c) => c.id === id)).filter(Boolean), ...unselected];
+  const unselectedIds = open.filter((c) => !typeQueue.includes(c.id))
+                            .sort((a, b) => (a.listOrder ?? 0) - (b.listOrder ?? 0))
+                            .map((c) => c.id);
+  // typeQueue ids first (includes freshly-added cases not yet in allCases), then the rest
+  const orderedIds = [...typeQueue, ...unselectedIds];
   try {
     const batch = writeBatch(db);
-    ordered.forEach((c, i) => batch.update(caseDoc(c.id), { listOrder: (i + 1) * 1000 }));
+    orderedIds.forEach((id, i) => batch.update(caseDoc(id), { listOrder: (i + 1) * 1000 }));
     await batch.commit();
     showToast("Ordem salva.");
   } catch (err) { showToast("Erro ao salvar ordem: " + err.message, "error"); }
