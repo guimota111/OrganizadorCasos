@@ -313,9 +313,10 @@ function buildRow(c) {
     <button class="list-row__check" data-action="toggle-check" title="Marcar como checado">✓</button>
     <div class="list-row__fap" title="Clique para copiar FAP" style="cursor:pointer;">${escHtml(c.fap)}</div>
     <div class="list-row__main">
-      <div class="list-row__nome">${escHtml(c.nome)}<button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button>${c.tipo === "imuno" ? `<span class="tipo-badge tipo-badge--imuno">IHQ</span>` : ""}</div>
+      <div class="list-row__nome">${escHtml(c.nome)}<button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button>${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}${c.tipo === "imuno" ? `<span class="tipo-badge tipo-badge--imuno">IHQ</span>` : ""}</div>
       ${lastLogText(c) ? `<div class="list-row__resumo-linha">${escHtml(lastLogText(c))}</div>` : ""}
     </div>
+    ${c.deadline ? (() => { const cd = fmtCountdown(c.deadline); return `<span class="prazo-chip prazo-chip--${cd.level}" title="Prazo do caso">⏳ ${cd.text}</span>`; })() : ""}
     <select class="status-select status-select--${c.status}" data-action="change-status">${selectOptions}</select>
     ${c.checked && c.checkedAt ? `<span class="list-row__checked-stamp">Visto em ${fmtStamp(c.checkedAt)}</span>` : ""}
     <span class="list-row__chevron" aria-hidden="true">▾</span>
@@ -330,11 +331,20 @@ function buildRow(c) {
             <label>FAP</label>
             <input type="text" class="ie-fap" value="${escHtml(c.fap)}" />
           </div>
-          <div class="inline-edit__field" style="max-width:140px;">
+          <div class="inline-edit__field" style="max-width:120px;">
             <label>Tipo</label>
             <select class="ie-tipo">
               <option value="he"${(c.tipo ?? "he") === "he" ? " selected" : ""}>HE</option>
               <option value="imuno"${c.tipo === "imuno" ? " selected" : ""}>Imuno (IHQ)</option>
+            </select>
+          </div>
+          <div class="inline-edit__field" style="max-width:90px;">
+            <label>Estado</label>
+            <select class="ie-uf">
+              <option value=""${!c.uf ? " selected" : ""}>—</option>
+              <option value="RJ"${c.uf === "RJ" ? " selected" : ""}>RJ</option>
+              <option value="SP"${c.uf === "SP" ? " selected" : ""}>SP</option>
+              <option value="GO"${c.uf === "GO" ? " selected" : ""}>GO</option>
             </select>
           </div>
         </div>
@@ -405,6 +415,12 @@ function buildRow(c) {
   if (tipoSel) tipoSel.addEventListener("change", async (e) => {
     e.stopPropagation();
     await updateDoc(caseDoc(c.id), { tipo: e.target.value, updatedAt: serverTimestamp() });
+  });
+  // Estado (UF) dropdown change
+  const ufSel = row.querySelector(".ie-uf");
+  if (ufSel) ufSel.addEventListener("change", async (e) => {
+    e.stopPropagation();
+    await updateDoc(caseDoc(c.id), { uf: e.target.value, updatedAt: serverTimestamp() });
   });
   // Status dropdown change
   row.querySelector(".status-select").addEventListener("change", async (e) => {
@@ -751,6 +767,16 @@ function flash(row, msg) {
   document.getElementById("import-choose-cancel").addEventListener("click", closeModal);
   document.getElementById("import-text-back").addEventListener("click", () => showStep(stepChoose));
 
+  // Prazo (tempo restante) no início da linha → duração em ms
+  //   "3d08h" → dias/horas   |   "15:45" → horas:minutos
+  function parsePrazoMs(line) {
+    let m = line.match(/^(\d+)d\s*(\d+)h/);
+    if (m) return ((+m[1] * 24 + +m[2]) * 60) * 60 * 1000;
+    m = line.match(/^(\d{1,2}):(\d{2})/);
+    if (m) return ((+m[1]) * 60 + +m[2]) * 60 * 1000;
+    return null;
+  }
+
   // Parse pasted text — FAP = last 12 digits of the numbers line, name = next line
   function parsePastedText(text) {
     const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length);
@@ -758,17 +784,22 @@ function flash(row, msg) {
     for (let i = 0; i < lines.length; i++) {
       const digits = lines[i].replace(/\D/g, "");
       if (digits.length >= 12) {
-        const fap = digits.slice(-12);
-        // Nome = próxima linha que não seja outra linha de FAP
-        let nome = "";
+        const fap     = digits.slice(-12);
+        const prazoMs = parsePrazoMs(lines[i]);
+        // Nome (1ª linha) e UF (linha RJ-/SP-/GO-) até a próxima linha de FAP
+        let nome = "", uf = "";
         for (let j = i + 1; j < lines.length; j++) {
           if (lines[j].replace(/\D/g, "").length >= 12) break;
-          nome = lines[j];
-          break;
+          const um = lines[j].match(/^(RJ|SP|GO)-/i);
+          if (um) { uf = um[1].toUpperCase(); continue; }
+          if (!nome) nome = lines[j].replace(/\s*-?\s*\d{4,}\s*$/, "").trim();
         }
-        // Remove número de registro no fim do nome (ex.: "- 001209767" ou " 05005927")
-        nome = nome.replace(/\s*-?\s*\d{4,}\s*$/, "").trim();
-        if (nome) out.push({ nome, fap });
+        if (nome) {
+          const c = { nome, fap };
+          if (prazoMs != null) c.deadline = Date.now() + prazoMs;
+          if (uf) c.uf = uf;
+          out.push(c);
+        }
       }
     }
     return out;
@@ -1002,9 +1033,13 @@ Se não encontrar casos, retorne [].`;
         row.innerHTML = `
           <input type="checkbox" checked style="flex-shrink:0;accent-color:var(--clr-primary);width:16px;height:16px;" />
           <span class="import-case-row__fap">${escHtml(c.fap)}</span>
-          <span class="import-case-row__nome">${escHtml(c.nome)}</span>`;
+          <span class="import-case-row__nome">${escHtml(c.nome)}</span>
+          ${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}
+          ${c.deadline ? `<span style="font-size:11px;color:var(--clr-text-muted);margin-left:auto;">⏳ ${fmtCountdown(c.deadline)?.text ?? ""}</span>` : ""}`;
         row.dataset.fap  = c.fap;
         row.dataset.nome = c.nome;
+        if (c.deadline) row.dataset.deadline = c.deadline;
+        if (c.uf)       row.dataset.uf = c.uf;
         newList.appendChild(row);
       });
     }
@@ -1046,6 +1081,8 @@ Se não encontrar casos, retorne [].`;
         row.dataset.fap     = c.fap;
         row.dataset.nome    = c.nome;
         row.dataset.matchId = match.id;
+        if (c.deadline) row.dataset.deadline = c.deadline;
+        if (c.uf)       row.dataset.uf = c.uf;
         reopenList.appendChild(row);
       });
     } else {
@@ -1101,7 +1138,7 @@ Se não encontrar casos, retorne [].`;
         order += 1000;
         const text   = `Caso reaberto com nova FAP ${r.dataset.fap}`;
         const newLog = [...getLog(match), { text, ts: Date.now() }];
-        await updateDoc(caseDoc(match.id), {
+        const upd = {
           fap:         r.dataset.fap,
           liberado:    false,
           checked:     false,
@@ -1110,14 +1147,17 @@ Se não encontrar casos, retorne [].`;
           resumoLinha: text,
           listOrder:   order,
           updatedAt:   serverTimestamp(),
-        });
+        };
+        if (r.dataset.deadline) upd.deadline = Number(r.dataset.deadline);
+        if (r.dataset.uf)       upd.uf = r.dataset.uf;
+        await updateDoc(caseDoc(match.id), upd);
       }
 
       // Casos novos
       for (const chk of checked) {
         const r = chk.closest(".import-case-row");
         order += 1000;
-        await addDoc(casesCol(), {
+        const doc = {
           nome:        r.dataset.nome,
           fap:         r.dataset.fap,
           status:      "nao-visto",
@@ -1127,7 +1167,10 @@ Se não encontrar casos, retorne [].`;
           listOrder:   order,
           createdAt:   serverTimestamp(),
           updatedAt:   serverTimestamp(),
-        });
+        };
+        if (r.dataset.deadline) doc.deadline = Number(r.dataset.deadline);
+        if (r.dataset.uf)       doc.uf = r.dataset.uf;
+        await addDoc(casesCol(), doc);
       }
 
       closeModal();
@@ -1187,6 +1230,20 @@ document.getElementById("sort-opt-print").addEventListener("click", async () => 
       showToast(`Casos reordenados conforme o print (${matched.length} casos).`);
     }
   } catch (err) { showToast("Erro ao reordenar: " + err.message, "error"); }
+});
+
+// ── Option 4: sort by prazo (deadline ascending; no deadline goes last)
+document.getElementById("sort-opt-prazo").addEventListener("click", async () => {
+  sortModal.hidden = true;
+  const open = allCases.filter((c) => !c.liberado);
+  const sorted = [...open].sort((a, b) => (a.deadline ?? Infinity) - (b.deadline ?? Infinity));
+  if (!sorted.some((c) => c.deadline)) { showToast("Nenhum caso tem prazo definido.", "error"); return; }
+  try {
+    const batch = writeBatch(db);
+    sorted.forEach((c, i) => batch.update(caseDoc(c.id), { listOrder: (i + 1) * 1000 }));
+    await batch.commit();
+    showToast("Casos ordenados por prazo.");
+  } catch (err) { showToast("Erro ao ordenar: " + err.message, "error"); }
 });
 
 // ── Option 2: click-to-reorder
@@ -1700,6 +1757,23 @@ function clip(str, max) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+// Countdown até o prazo (deadline em ms). Retorna {text, level} ou null.
+function fmtCountdown(deadline) {
+  if (!deadline) return null;
+  const diff = deadline - Date.now();
+  if (diff <= 0) return { text: "Vencido", level: "vencido" };
+  const mins = Math.floor(diff / 60000);
+  const d = Math.floor(mins / 1440);
+  const h = Math.floor((mins % 1440) / 60);
+  const m = mins % 60;
+  let text;
+  if (d > 0)      text = `${d}d ${h}h`;
+  else if (h > 0) text = `${h}h ${m}m`;
+  else            text = `${m}m`;
+  const level = d >= 2 ? "ok" : (d >= 1 ? "warn" : "urgent");
+  return { text, level };
+}
+
 function fmtStamp(ts) {
   if (!ts) return "";
   const d = new Date(ts.seconds * 1000);
@@ -1713,3 +1787,16 @@ function escHtml(str) {
     .replace(/&/g, "&amp;").replace(/</g, "&lt;")
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+
+// ─── Live countdown refresh — atualiza os chips de prazo a cada minuto ─────────
+setInterval(() => {
+  document.querySelectorAll("#case-list .list-row").forEach((row) => {
+    const c    = allCases.find((x) => x.id === row.dataset.id);
+    const chip = row.querySelector(".prazo-chip");
+    if (c && c.deadline && chip) {
+      const cd = fmtCountdown(c.deadline);
+      chip.textContent = `⏳ ${cd.text}`;
+      chip.className = `prazo-chip prazo-chip--${cd.level}`;
+    }
+  });
+}, 60000);

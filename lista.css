@@ -167,6 +167,32 @@
   border: 1px solid #c4b5fd;
 }
 
+.uf-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.uf-badge--rj { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.uf-badge--sp { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.uf-badge--go { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+
+.prazo-chip {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.prazo-chip--ok      { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.prazo-chip--warn    { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.prazo-chip--urgent  { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.prazo-chip--vencido { background: #b91c1c; color: #fff; border: 1px solid #b91c1c; }
+
 .list-row__nome {
   font-size: 14px;
   font-weight: 700;
