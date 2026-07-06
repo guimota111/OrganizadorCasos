@@ -313,10 +313,9 @@ function buildRow(c) {
     <button class="list-row__check" data-action="toggle-check" title="Marcar como checado">✓</button>
     <div class="list-row__fap" title="Clique para copiar FAP" style="cursor:pointer;">${escHtml(c.fap)}</div>
     <div class="list-row__main">
-      <div class="list-row__nome">${escHtml(c.nome)}<button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button>${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}${c.tipo === "imuno" ? `<span class="tipo-badge tipo-badge--imuno">IHQ</span>` : ""}</div>
+      <div class="list-row__nome">${escHtml(c.nome)}<button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button>${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}${c.tipo === "imuno" ? `<span class="tipo-badge tipo-badge--imuno">IHQ</span>` : ""}${c.deadline ? (() => { const cd = fmtCountdown(c.deadline); return `<span class="prazo-chip prazo-chip--${cd.level}" title="Prazo do caso">⏳ ${cd.text}</span>`; })() : ""}</div>
       ${lastLogText(c) ? `<div class="list-row__resumo-linha">${escHtml(lastLogText(c))}</div>` : ""}
     </div>
-    ${c.deadline ? (() => { const cd = fmtCountdown(c.deadline); return `<span class="prazo-chip prazo-chip--${cd.level}" title="Prazo do caso">⏳ ${cd.text}</span>`; })() : ""}
     <select class="status-select status-select--${c.status}" data-action="change-status">${selectOptions}</select>
     ${c.checked && c.checkedAt ? `<span class="list-row__checked-stamp">Visto em ${fmtStamp(c.checkedAt)}</span>` : ""}
     <span class="list-row__chevron" aria-hidden="true">▾</span>
