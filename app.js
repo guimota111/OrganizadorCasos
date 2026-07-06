@@ -19,6 +19,8 @@ let activeFilter    = "all";
 let pendingDeleteId = null;
 let reorderMode     = false;
 let reorderQueue    = [];   // IDs in the order the user clicks
+let selectMode      = false;
+const selectedIds   = new Set();   // IDs selected for bulk delete
 let lastPrintOrder  = JSON.parse(localStorage.getItem("lastPrintOrder") || "[]");
 const expandedIds   = new Set();
 
@@ -295,8 +297,9 @@ const STATUS_OPTIONS = [
 function buildRow(c) {
   const row = document.createElement("div");
   const qPos = reorderQueue.indexOf(c.id);
-  row.className = `list-row list-row--${c.status}${c.checked ? " list-row--checked" : ""}${reorderMode ? (qPos >= 0 ? " reorder-selected" : " reorder-pending") : ""}`;
-  row.setAttribute("draggable", !reorderMode);
+  const isSelected = selectedIds.has(c.id);
+  row.className = `list-row list-row--${c.status}${c.checked ? " list-row--checked" : ""}${reorderMode ? (qPos >= 0 ? " reorder-selected" : " reorder-pending") : ""}${selectMode ? (isSelected ? " select-selected" : " select-pending") : ""}`;
+  row.setAttribute("draggable", !reorderMode && !selectMode);
   row.dataset.id = c.id;
 
   const selectOptions = STATUS_OPTIONS.map((o) =>
@@ -305,6 +308,8 @@ function buildRow(c) {
 
   const reorderBadge = reorderMode
     ? `<div class="reorder-badge">${qPos >= 0 ? qPos + 1 : ""}</div>`
+    : selectMode
+    ? `<div class="select-badge">${isSelected ? "✓" : ""}</div>`
     : "";
 
   row.innerHTML = `
@@ -396,6 +401,13 @@ function buildRow(c) {
   });
 
   row.addEventListener("click", (e) => {
+    if (selectMode) {
+      if (selectedIds.has(c.id)) selectedIds.delete(c.id);
+      else selectedIds.add(c.id);
+      updateSelectDeleteBtn();
+      render();
+      return;
+    }
     if (reorderMode) {
       const idx = reorderQueue.indexOf(c.id);
       if (idx >= 0) reorderQueue.splice(idx, 1);
@@ -633,7 +645,23 @@ function initDrag(container) {
 }
 
 // ─── Delete modal ─────────────────────────────────────────────────────────────
+let pendingBulkDelete = null;   // array of ids for bulk delete
+
 confirmDelBtn.addEventListener("click", async () => {
+  if (pendingBulkDelete && pendingBulkDelete.length) {
+    try {
+      const batch = writeBatch(db);
+      pendingBulkDelete.forEach((id) => batch.delete(caseDoc(id)));
+      await batch.commit();
+      showToast(`${pendingBulkDelete.length} caso${pendingBulkDelete.length !== 1 ? "s" : ""} excluído${pendingBulkDelete.length !== 1 ? "s" : ""}.`);
+    } catch (err) {
+      showToast("Erro ao excluir: " + err.message, "error");
+    }
+    pendingBulkDelete = null;
+    deleteModal.hidden = true;
+    if (selectMode) exitSelectMode();
+    return;
+  }
   if (!pendingDeleteId) return;
   try {
     await deleteDoc(caseDoc(pendingDeleteId));
@@ -644,8 +672,8 @@ confirmDelBtn.addEventListener("click", async () => {
   pendingDeleteId   = null;
   deleteModal.hidden = true;
 });
-cancelDelBtn.addEventListener("click", () => { pendingDeleteId = null; deleteModal.hidden = true; });
-deleteModal.addEventListener("click", (e) => { if (e.target === deleteModal) { pendingDeleteId = null; deleteModal.hidden = true; }});
+cancelDelBtn.addEventListener("click", () => { pendingDeleteId = null; pendingBulkDelete = null; deleteModal.hidden = true; });
+deleteModal.addEventListener("click", (e) => { if (e.target === deleteModal) { pendingDeleteId = null; pendingBulkDelete = null; deleteModal.hidden = true; }});
 
 // ─── Imuno (IHQ) flow ─────────────────────────────────────────────────────────
 const imunoModal = document.getElementById("imuno-modal");
@@ -1279,6 +1307,45 @@ reorderConfirmBtn.addEventListener("click", async () => {
     showToast("Ordem salva.");
   } catch (err) { showToast("Erro ao salvar ordem: " + err.message, "error"); }
   exitReorderMode();
+});
+
+// ─── Bulk delete (selection mode) ─────────────────────────────────────────────
+const selectModeBtn   = document.getElementById("select-mode-btn");
+const selectDeleteBtn = document.getElementById("select-delete-btn");
+const selectCancelBtn = document.getElementById("select-cancel-btn");
+
+function updateSelectDeleteBtn() {
+  selectDeleteBtn.textContent = `Excluir selecionados (${selectedIds.size})`;
+  selectDeleteBtn.disabled = selectedIds.size === 0;
+}
+
+function enterSelectMode() {
+  selectMode = true;
+  selectedIds.clear();
+  selectModeBtn.hidden   = true;
+  selectDeleteBtn.hidden = false;
+  selectCancelBtn.hidden = false;
+  caseListEl.classList.add("select-mode");
+  updateSelectDeleteBtn();
+  render();
+}
+function exitSelectMode() {
+  selectMode = false;
+  selectedIds.clear();
+  selectModeBtn.hidden   = false;
+  selectDeleteBtn.hidden = true;
+  selectCancelBtn.hidden = true;
+  caseListEl.classList.remove("select-mode");
+  render();
+}
+selectModeBtn.addEventListener("click", enterSelectMode);
+selectCancelBtn.addEventListener("click", exitSelectMode);
+
+selectDeleteBtn.addEventListener("click", () => {
+  if (!selectedIds.size) return;
+  pendingBulkDelete = [...selectedIds];
+  deleteModalMsg.textContent = `Excluir ${pendingBulkDelete.length} caso${pendingBulkDelete.length !== 1 ? "s" : ""} selecionado${pendingBulkDelete.length !== 1 ? "s" : ""}? Esta ação não pode ser desfeita.`;
+  deleteModal.hidden = false;
 });
 
 // ── Option 3: type-to-order

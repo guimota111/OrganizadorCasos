@@ -413,6 +413,29 @@
   background: #eff6ff;
 }
 
+/* select (bulk delete) mode */
+.select-mode .list-row { cursor: pointer; }
+.list-row.select-pending { opacity: .6; }
+.list-row.select-selected { opacity: 1; outline: 2px solid var(--clr-danger); outline-offset: -2px; background: #fef2f2; }
+.select-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid #cbd5e1;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 24px;
+}
+.list-row.select-selected .select-badge {
+  background: var(--clr-danger);
+  border-color: var(--clr-danger);
+  color: #fff;
+}
+
 /* status left border + row background */
 .list-row--nao-visto { border-left: 3px solid #cbd5e1; }
 .list-row--visto     { border-left: 3px solid #fbbf24; background: #fef9c3; }
