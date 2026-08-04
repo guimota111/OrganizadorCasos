@@ -764,12 +764,19 @@ function flash(row, msg) {
   const reopenList      = document.getElementById("import-reopen-list");
   const reopenSection   = document.getElementById("import-reopen-section");
   const reopenLabel     = document.getElementById("import-reopen-label");
+  const missingList     = document.getElementById("import-missing-list");
+  const missingSection  = document.getElementById("import-missing-section");
+  const missingLabel    = document.getElementById("import-missing-label");
+  const stepConfirmDel  = document.getElementById("import-step-confirm-delete");
+  const deleteMsg       = document.getElementById("import-delete-msg");
+  const deleteList      = document.getElementById("import-delete-list");
   const confirmBtn     = document.getElementById("import-confirm-btn");
 
   let selectedFile = null;
 
   function showStep(step) {
-    [stepChoose, stepText, stepKey, stepUpload, stepLoading, stepResults].forEach((s) => { s.hidden = true; });
+    [stepChoose, stepText, stepKey, stepUpload, stepLoading, stepResults, stepConfirmDel]
+      .forEach((s) => { s.hidden = true; });
     step.hidden = false;
   }
 
@@ -839,9 +846,10 @@ function flash(row, msg) {
       showToast("Nenhum caso reconhecido no texto colado.", "error");
       return;
     }
+    const scope = document.querySelector('input[name="import-scope"]:checked')?.value;
     lastPrintOrder = extracted.map((c) => normFap(c.fap));
     localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
-    showResults(extracted);
+    showResults(extracted, { fullList: scope === "full" });
   });
 
   function closeModal() {
@@ -1029,18 +1037,20 @@ Se não encontrar casos, retorne [].`;
     return allCases.find((ex) => ex.liberado && normNome(ex.nome) && nameSimilar(nome, normNome(ex.nome))) ?? null;
   }
 
-  function showResults(extracted) {
+  function showResults(extracted, { fullList = false } = {}) {
     const novos      = [];
     const jaExistem  = [];
     const provaveis  = [];   // name match but FAP slightly different (open cases)
     const reaberturas = [];  // name match in released cases → offer to reopen
+    const matchedIds = new Set();  // cases already in the organizer that the list covers
 
     for (const c of extracted) {
       const dup = findDuplicate(c);
+      if (dup) matchedIds.add(dup.match.id);
       if (dup && dup.reason === "fap") { jaExistem.push({ c, match: dup.match }); continue; }
       if (dup && dup.reason === "nome" && !dup.match.liberado) { provaveis.push({ c, match: dup.match }); continue; }
       const rel = findReleasedMatch(c);
-      if (rel) { reaberturas.push({ c, match: rel }); continue; }
+      if (rel) { matchedIds.add(rel.id); reaberturas.push({ c, match: rel }); continue; }
       novos.push(c);
     }
 
@@ -1048,12 +1058,11 @@ Se não encontrar casos, retorne [].`;
     existingList.innerHTML = "";
     probableList.innerHTML = "";
     reopenList.innerHTML   = "";
+    missingList.innerHTML  = "";
 
     if (novos.length === 0) {
       newList.innerHTML = `<p style="font-size:13px;color:var(--clr-text-muted);padding:8px 0;">Nenhum caso novo encontrado.</p>`;
-      confirmBtn.disabled = true;
     } else {
-      confirmBtn.disabled = false;
       novos.forEach((c) => {
         const row = document.createElement("div");
         row.className = "import-case-row";
@@ -1132,23 +1141,99 @@ Se não encontrar casos, retorne [].`;
       existingSection.hidden = true;
     }
 
+    // Lista completa — casos abertos no organizador que não vieram na lista
+    const ausentes = fullList
+      ? allCases
+          .filter((c) => !c.liberado && !matchedIds.has(c.id))
+          .sort((a, b) => (a.listOrder ?? a.sortOrder ?? 0) - (b.listOrder ?? b.sortOrder ?? 0))
+      : [];
+
+    if (ausentes.length > 0) {
+      missingSection.hidden = false;
+      missingLabel.textContent = `${ausentes.length} caso${ausentes.length !== 1 ? "s" : ""} fora da lista`;
+      ausentes.forEach((c) => {
+        const row = document.createElement("div");
+        row.className = "import-case-row import-case-row--missing";
+        row.innerHTML = `
+          <input type="checkbox" checked style="flex-shrink:0;accent-color:var(--clr-danger);width:16px;height:16px;" />
+          <span class="import-case-row__fap">${escHtml(c.fap ?? "")}</span>
+          <span class="import-case-row__nome">${escHtml(c.nome ?? "")}</span>
+          ${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}`;
+        row.dataset.id   = c.id;
+        row.dataset.nome = c.nome ?? "";
+        row.dataset.fap  = c.fap ?? "";
+        missingList.appendChild(row);
+      });
+    } else {
+      missingSection.hidden = true;
+    }
+
+    confirmBtn.disabled = novos.length === 0 && provaveis.length === 0
+      && reaberturas.length === 0 && ausentes.length === 0;
+    confirmBtn.textContent = "Importar selecionados";
+
     showStep(stepResults);
   }
+
+  // Marcar / desmarcar todos os casos fora da lista
+  document.getElementById("import-missing-all").addEventListener("click", () => {
+    missingList.querySelectorAll("input[type=checkbox]").forEach((i) => { i.checked = true; });
+  });
+  document.getElementById("import-missing-none").addEventListener("click", () => {
+    missingList.querySelectorAll("input[type=checkbox]").forEach((i) => { i.checked = false; });
+  });
 
   // Back to upload
   document.getElementById("import-results-back").addEventListener("click", () => showStep(stepChoose));
 
-  // Confirm import
-  confirmBtn.addEventListener("click", async () => {
-    const checked = [
-      ...newList.querySelectorAll(".import-case-row input:checked"),
-      ...probableList.querySelectorAll(".import-case-row input:checked"),
-    ];
-    const reopenChecked = [...reopenList.querySelectorAll(".import-case-row input:checked")];
-    if (checked.length === 0 && reopenChecked.length === 0) { showToast("Nenhum caso selecionado.", "error"); return; }
+  function getSelection() {
+    return {
+      checked: [
+        ...newList.querySelectorAll(".import-case-row input:checked"),
+        ...probableList.querySelectorAll(".import-case-row input:checked"),
+      ],
+      reopenChecked: [...reopenList.querySelectorAll(".import-case-row input:checked")],
+      deleteChecked: [...missingList.querySelectorAll(".import-case-row input:checked")],
+    };
+  }
 
-    confirmBtn.disabled = true;
+  // Confirm import — se houver exclusões marcadas, confirma antes
+  confirmBtn.addEventListener("click", () => {
+    const { checked, reopenChecked, deleteChecked } = getSelection();
+    if (checked.length === 0 && reopenChecked.length === 0 && deleteChecked.length === 0) {
+      showToast("Nenhum caso selecionado.", "error");
+      return;
+    }
+    if (deleteChecked.length > 0) {
+      const n = deleteChecked.length;
+      deleteMsg.textContent = `${n} caso${n !== 1 ? "s" : ""} do organizador não ${n !== 1 ? "estão" : "está"} na lista colada e ser${n !== 1 ? "ão" : "á"} excluído${n !== 1 ? "s" : ""} definitivamente:`;
+      deleteList.innerHTML = "";
+      deleteChecked.forEach((chk) => {
+        const r   = chk.closest(".import-case-row");
+        const row = document.createElement("div");
+        row.className = "import-case-row import-case-row--missing";
+        row.innerHTML = `
+          <span class="import-case-row__fap">${escHtml(r.dataset.fap)}</span>
+          <span class="import-case-row__nome">${escHtml(r.dataset.nome)}</span>`;
+        deleteList.appendChild(row);
+      });
+      showStep(stepConfirmDel);
+      return;
+    }
+    runImport();
+  });
+
+  const delConfirmBtn = document.getElementById("import-delete-confirm");
+  document.getElementById("import-delete-cancel").addEventListener("click", () => showStep(stepResults));
+  delConfirmBtn.addEventListener("click", () => runImport());
+
+  async function runImport() {
+    const { checked, reopenChecked, deleteChecked } = getSelection();
+
+    confirmBtn.disabled    = true;
+    delConfirmBtn.disabled = true;
     confirmBtn.textContent = "Importando…";
+    delConfirmBtn.textContent = "Excluindo…";
 
     try {
       const maxOrder = allCases
@@ -1200,18 +1285,29 @@ Se não encontrar casos, retorne [].`;
         await addDoc(casesCol(), doc);
       }
 
+      // Casos fora da lista — exclusão já confirmada na etapa anterior
+      if (deleteChecked.length) {
+        const batch = writeBatch(db);
+        deleteChecked.forEach((chk) => batch.delete(caseDoc(chk.closest(".import-case-row").dataset.id)));
+        await batch.commit();
+      }
+
       closeModal();
-      const total = checked.length + reopenChecked.length;
       const partes = [];
       if (checked.length) partes.push(`${checked.length} importado${checked.length !== 1 ? "s" : ""}`);
       if (reopenChecked.length) partes.push(`${reopenChecked.length} reaberto${reopenChecked.length !== 1 ? "s" : ""}`);
+      if (deleteChecked.length) partes.push(`${deleteChecked.length} excluído${deleteChecked.length !== 1 ? "s" : ""}`);
       showToast(partes.join(" e ") + ".");
     } catch (err) {
       showToast("Erro ao importar: " + err.message, "error");
-      confirmBtn.disabled = false;
-      confirmBtn.textContent = "Importar selecionados";
+      showStep(stepResults);
+    } finally {
+      confirmBtn.disabled       = false;
+      confirmBtn.textContent    = "Importar selecionados";
+      delConfirmBtn.disabled    = false;
+      delConfirmBtn.textContent = "Excluir e importar";
     }
-  });
+  }
 
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
