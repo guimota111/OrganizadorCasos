@@ -318,11 +318,11 @@ function buildRow(c) {
     <button class="list-row__check" data-action="toggle-check" title="Marcar como checado">✓</button>
     <div class="list-row__fap" title="Clique para copiar FAP" style="cursor:pointer;">${escHtml(c.fap)}</div>
     <div class="list-row__main">
-      <div class="list-row__nome">${escHtml(c.nome)}<button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button>${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}${c.tipo === "imuno" ? `<span class="tipo-badge tipo-badge--imuno">IHQ</span>` : ""}${c.deadline ? (() => { const cd = fmtCountdown(c.deadline); return `<span class="prazo-chip prazo-chip--${cd.level}" title="Prazo do caso">⏳ ${cd.text}</span>`; })() : ""}</div>
+      <div class="list-row__nome"><span class="list-row__nome-text">${escHtml(c.nome)}</span><button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button>${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}${c.tipo === "imuno" ? `<span class="tipo-badge tipo-badge--imuno">IHQ</span>` : ""}${c.deadline ? (() => { const cd = fmtCountdown(c.deadline); return `<span class="prazo-chip prazo-chip--${cd.level}" title="Prazo do caso">⏳ ${cd.text}</span>`; })() : ""}</div>
       ${lastLogText(c) ? `<div class="list-row__resumo-linha">${escHtml(lastLogText(c))}</div>` : ""}
     </div>
     <select class="status-select status-select--${c.status}" data-action="change-status">${selectOptions}</select>
-    ${c.checked && c.checkedAt ? `<span class="list-row__checked-stamp">Visto em ${fmtStamp(c.checkedAt)}</span>` : ""}
+    ${c.checked && c.checkedAt ? `<span class="list-row__checked-stamp"><span class="stamp-prefix">Visto em </span>${fmtStamp(c.checkedAt)}</span>` : ""}
     <span class="list-row__chevron" aria-hidden="true">▾</span>
     <div class="list-row__detail" hidden>
       <div class="inline-edit">
@@ -335,14 +335,14 @@ function buildRow(c) {
             <label>FAP</label>
             <input type="text" class="ie-fap" value="${escHtml(c.fap)}" />
           </div>
-          <div class="inline-edit__field" style="max-width:120px;">
+          <div class="inline-edit__field inline-edit__field--narrow">
             <label>Tipo</label>
             <select class="ie-tipo">
               <option value="he"${(c.tipo ?? "he") === "he" ? " selected" : ""}>HE</option>
               <option value="imuno"${c.tipo === "imuno" ? " selected" : ""}>Imuno (IHQ)</option>
             </select>
           </div>
-          <div class="inline-edit__field" style="max-width:90px;">
+          <div class="inline-edit__field inline-edit__field--tiny">
             <label>Estado</label>
             <select class="ie-uf">
               <option value=""${!c.uf ? " selected" : ""}>—</option>
@@ -552,7 +552,7 @@ function buildReleasedRow(c) {
     <div></div>
     <div class="list-row__fap" style="color:var(--clr-text-muted);cursor:pointer;" title="Clique para copiar FAP">${escHtml(c.fap)}</div>
     <div class="list-row__main">
-        <div class="list-row__nome" style="color:var(--clr-text-muted);font-weight:500;">${escHtml(c.nome)}<button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button></div>
+        <div class="list-row__nome" style="color:var(--clr-text-muted);font-weight:500;"><span class="list-row__nome-text">${escHtml(c.nome)}</span><button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button></div>
         ${lastLogText(c) ? `<div class="list-row__resumo-linha" style="color:var(--clr-text-muted);">${escHtml(lastLogText(c))}</div>` : ""}
       </div>
     <span class="badge badge--liberado">Liberado ${when}</span>
@@ -1941,7 +1941,9 @@ function fmtStamp(ts) {
   const d = new Date(ts.seconds * 1000);
   const hm = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const dm = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-  return `${hm} ${dm}`;
+  // Data em span próprio: no celular só a hora aparece, para o carimbo não
+  // roubar espaço do seletor de status.
+  return `${hm}<span class="stamp-date"> ${dm}</span>`;
 }
 
 function escHtml(str) {

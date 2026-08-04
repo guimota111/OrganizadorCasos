@@ -805,18 +805,24 @@ body {
 @media (max-width: 600px) {
   .page-wrapper { padding: 0 12px 48px; }
 
-  /* Compact header */
-  .site-header { padding: 12px 14px; }
-  .site-header__icon { font-size: 20px; padding: 6px; }
-  .site-header h1 { font-size: 15px; }
+  /* Compact header — título numa linha só e nada saindo da tela */
+  .site-header { padding: 10px 12px; }
+  .site-header__inner { gap: 10px; }
+  .site-header__icon { font-size: 18px; padding: 5px; flex-shrink: 0; }
+  .site-header__inner > div { min-width: 0; }
+  /* display:block (em vez de flex) para o texto realmente cortar com "…" */
+  .site-header h1 { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .version-tag { display: none; }
   .site-header__sub { display: none; }
-  .user-chip { max-width: 110px; font-size: 11px; padding: 4px 10px; }
+  .site-header__user { gap: 6px; min-width: 0; flex-shrink: 0; }
+  .user-chip { max-width: 92px; font-size: 11px; padding: 4px 10px; }
+  .site-header__user .btn { padding: 5px 10px; font-size: 12px; }
 
-  /* Compact stat cards, 3 per row */
-  .stats-bar { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
-  .stat-card { padding: 12px 8px 10px; }
-  .stat-card__value { font-size: 20px; }
-  .stat-card__label { font-size: 10px; letter-spacing: .02em; }
+  /* Compact stat cards, 4 per row — menos rolagem até a lista */
+  .stats-bar { grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
+  .stat-card { padding: 7px 4px 6px; border-radius: 8px; }
+  .stat-card__value { font-size: 17px; }
+  .stat-card__label { font-size: 9px; letter-spacing: 0; line-height: 1.25; }
 
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .form-group--full { grid-column: 1; }
