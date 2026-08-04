@@ -235,6 +235,16 @@
         <h2>📋 Colar texto</h2>
         <p>Cole a lista. Cada caso deve ter a linha com os números (a FAP são os 12 últimos dígitos) e a linha do nome logo abaixo.</p>
         <textarea id="import-text-input" rows="10" placeholder="01:56970304122454&#10;MARIA DAS GRAÇAS&#10;RJ-26-163854&#10;..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:monospace;resize:vertical;"></textarea>
+        <div class="import-scope" style="margin-top:12px;">
+          <label class="import-scope__opt">
+            <input type="radio" name="import-scope" value="full" checked />
+            <span><strong>Lista completa</strong><br><small>Estou colando a lista inteira — mostrar os casos do organizador que não estão nela para eu excluir</small></span>
+          </label>
+          <label class="import-scope__opt">
+            <input type="radio" name="import-scope" value="partial" />
+            <span><strong>Parte da lista</strong><br><small>Só adicionar os casos colados, sem mexer no resto</small></span>
+          </label>
+        </div>
         <div class="modal__actions" style="margin-top:16px;">
           <button class="btn btn--ghost" id="import-text-back">← Voltar</button>
           <button class="btn btn--primary" id="import-text-process">Processar</button>
@@ -298,9 +308,29 @@
           <p class="import-section-label import-section-label--existing" id="import-existing-label"></p>
           <div id="import-existing-list"></div>
         </div>
+        <div id="import-missing-section" hidden style="margin-top:16px;">
+          <p class="import-section-label import-section-label--missing" id="import-missing-label"></p>
+          <p style="font-size:11px;color:var(--clr-text-muted);margin:-4px 0 6px;">Estão no organizador mas não aparecem na lista colada. Marque os que quiser excluir.</p>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <button type="button" class="btn btn--ghost btn--sm" id="import-missing-all">Marcar todos</button>
+            <button type="button" class="btn btn--ghost btn--sm" id="import-missing-none">Desmarcar todos</button>
+          </div>
+          <div id="import-missing-list"></div>
+        </div>
         <div class="modal__actions" style="margin-top:20px;">
           <button class="btn btn--ghost" id="import-results-back">← Voltar</button>
           <button class="btn btn--primary" id="import-confirm-btn">Importar selecionados</button>
+        </div>
+      </div>
+
+      <!-- Step: confirm deletion of cases missing from the pasted list -->
+      <div id="import-step-confirm-delete" hidden>
+        <h2>🗑️ Confirmar exclusão</h2>
+        <p id="import-delete-msg" style="margin-top:8px;"></p>
+        <div id="import-delete-list" style="margin-top:12px;max-height:320px;overflow-y:auto;"></div>
+        <div class="modal__actions" style="margin-top:20px;">
+          <button class="btn btn--ghost" id="import-delete-cancel">← Voltar</button>
+          <button class="btn btn--danger" id="import-delete-confirm">Excluir e importar</button>
         </div>
       </div>
 
