@@ -183,23 +183,28 @@
 
 /* Prazo — primeira coluna da linha, não um selo. Números tabulares para o
    tique de 1s não fazer a largura dançar. */
+/* Prazo — faixa preenchida na borda esquerda da linha, de altura inteira. As
+   margens negativas cancelam o padding da linha para o bloco encostar na borda;
+   o resto do card mantém a própria cor. Números tabulares para o tique de 1s
+   não fazer a largura dançar. */
 .list-row__prazo {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin: -11px 0 -11px -16px;
+  padding: 0 10px 0 16px;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
-  text-align: right;
-  padding-right: 8px;
-  border-right: 3px solid transparent;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
-.list-row__prazo--ok      { color: #166534; border-right-color: #86efac; }
-.list-row__prazo--warn    { color: #92400e; border-right-color: #fbbf24; }
-.list-row__prazo--urgent  { color: #b91c1c; border-right-color: #f87171; }
-.list-row__prazo--vencido { color: #fff; background: #b91c1c; border-right-color: #7f1d1d;
-                            border-radius: 4px; padding: 2px 8px 2px 6px; }
-.list-row__prazo--vazio   { border-right-color: var(--clr-border); }
+.list-row__prazo--ok      { background: #16a34a; color: #fff; }
+.list-row__prazo--warn    { background: #f59e0b; color: #422006; }
+.list-row__prazo--vencido { background: #b91c1c; color: #fff; }
+.list-row__prazo--vazio   { background: transparent; }
 
 .list-row__nome {
   font-size: 14px;
@@ -516,8 +521,9 @@
   .list-row__handle        { display: none; }
   /* min-width fixo: cada linha é um grid próprio, então sem isso a linha sem
      prazo colapsaria a primeira coluna e desalinharia da lista. */
-  .list-row__prazo         { grid-area: prazo; align-self: center; font-size: 12px;
-                             padding-right: 6px; margin-right: 2px; min-width: 56px; }
+  .list-row__prazo         { grid-area: prazo; align-self: stretch; font-size: 12px;
+                             margin: -9px 0 -9px -12px; padding: 0 8px 0 12px;
+                             min-width: 56px; }
   .list-row__check         { grid-area: check; align-self: center; }
   .list-row__main          { grid-area: main; }
   .list-row__chevron       { grid-area: chevron; align-self: center; }
