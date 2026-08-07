@@ -729,6 +729,7 @@ body {
 .import-section-label--probable { color: #92400e; }
 .import-section-label--reopen   { color: #6d28d9; }
 .import-section-label--existing { color: var(--clr-text-muted); }
+.import-section-label--sobrando { color: #b91c1c; }
 
 .import-case-row {
   display: flex;
@@ -752,6 +753,11 @@ body {
 .import-case-row--reopen {
   background: #f5f3ff;
   border: 1px solid #c4b5fd;
+  border-radius: 6px;
+}
+.import-case-row--sobrando {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
   border-radius: 6px;
 }
 .import-case-row__fap {

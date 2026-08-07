@@ -224,6 +224,10 @@
             <span style="font-size:18px;">📸</span>
             <span><strong>Enviar print</strong><br><small>Analisa uma imagem do monitor com IA</small></span>
           </button>
+          <button class="btn btn--ghost sort-method-btn" id="import-opt-json">
+            <span style="font-size:18px;">🔗</span>
+            <span><strong>JSON do Motion</strong><br><small>Sincroniza com a lista extraída pelo script do monitor</small></span>
+          </button>
         </div>
         <div class="modal__actions" style="margin-top:16px;">
           <button class="btn btn--ghost" id="import-choose-cancel">Cancelar</button>
@@ -238,6 +242,17 @@
         <div class="modal__actions" style="margin-top:16px;">
           <button class="btn btn--ghost" id="import-text-back">← Voltar</button>
           <button class="btn btn--primary" id="import-text-process">Processar</button>
+        </div>
+      </div>
+
+      <!-- Step: paste JSON (Motion) -->
+      <div id="import-step-json" hidden>
+        <h2>🔗 JSON do Motion</h2>
+        <p>Cole o JSON gerado pelo script do Monitor de Pendências. Casos novos são adicionados, os que já existem têm <strong>apenas o prazo</strong> atualizado, e os que estão no organizador mas não vieram na lista aparecem para você decidir se apaga.</p>
+        <textarea id="import-json-input" rows="10" placeholder='[{"fap":"493274105796","nome":"MARIA DOS SANTOS","prazo":"2d04h"}]' style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:monospace;resize:vertical;"></textarea>
+        <div class="modal__actions" style="margin-top:16px;">
+          <button class="btn btn--ghost" id="import-json-back">← Voltar</button>
+          <button class="btn btn--primary" id="import-json-process">Processar</button>
         </div>
       </div>
 
@@ -297,6 +312,11 @@
         <div id="import-existing-section" hidden style="margin-top:16px;">
           <p class="import-section-label import-section-label--existing" id="import-existing-label"></p>
           <div id="import-existing-list"></div>
+        </div>
+        <div id="import-sobrando-section" hidden style="margin-top:16px;">
+          <p class="import-section-label import-section-label--sobrando" id="import-sobrando-label"></p>
+          <p style="font-size:11px;color:var(--clr-text-muted);margin:-4px 0 6px;">Estes casos estão ativos no organizador mas não vieram na lista. Marque os que quiser <strong>excluir</strong> — nada é apagado sem marcação.</p>
+          <div id="import-sobrando-list"></div>
         </div>
         <div class="modal__actions" style="margin-top:20px;">
           <button class="btn btn--ghost" id="import-results-back">← Voltar</button>
