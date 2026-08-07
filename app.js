@@ -856,6 +856,15 @@ function flash(row, msg) {
     } catch {
       return { erro: "Isso não é um JSON válido." };
     }
+    // Copiar do console (ou qualquer caminho que passe pelo JSON.stringify duas
+    // vezes) entrega uma string contendo JSON. Desembrulha essa camada.
+    if (typeof dados === "string") {
+      try {
+        dados = JSON.parse(dados);
+      } catch {
+        return { erro: "Isso não é um JSON válido." };
+      }
+    }
     const lista = Array.isArray(dados) ? dados : (Array.isArray(dados?.casos) ? dados.casos : null);
     if (!lista) return { erro: "O JSON precisa ser uma lista de casos." };
 
