@@ -24,6 +24,15 @@ const selectedIds   = new Set();   // IDs selected for bulk delete
 let lastPrintOrder  = JSON.parse(localStorage.getItem("lastPrintOrder") || "[]");
 const expandedIds   = new Set();
 
+// A importação por URL (#motion=…) só pode rodar depois que os casos existentes
+// chegarem — sem eles, todos pareceriam "novos" e nada seria reconhecido.
+let casosCarregados   = false;
+const aguardandoCasos = [];
+function quandoCasosCarregarem(fn) {
+  if (casosCarregados) fn();
+  else aguardandoCasos.push(fn);
+}
+
 // lastPrintOrder restored from localStorage — sort button always available
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
@@ -158,6 +167,10 @@ onAuthStateChanged(auth, async (user) => {
       (snap) => {
         allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         render();
+        if (!casosCarregados) {
+          casosCarregados = true;
+          aguardandoCasos.splice(0).forEach((fn) => fn());
+        }
       },
       (err) => showToast("Erro ao carregar casos: " + err.message, "error")
     );
@@ -167,6 +180,7 @@ onAuthStateChanged(auth, async (user) => {
     mainHeader.hidden   = true;
     mainContent.hidden  = true;
     if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+    casosCarregados = false;
     allCases = [];
   }
 });
@@ -742,6 +756,7 @@ function flash(row, msg) {
   const importModal    = document.getElementById("import-modal");
   const stepChoose     = document.getElementById("import-step-choose");
   const stepText       = document.getElementById("import-step-text");
+  const stepJson       = document.getElementById("import-step-json");
   const stepKey        = document.getElementById("import-step-key");
   const stepUpload     = document.getElementById("import-step-upload");
   const stepLoading    = document.getElementById("import-step-loading");
@@ -775,7 +790,7 @@ function flash(row, msg) {
   let selectedFile = null;
 
   function showStep(step) {
-    [stepChoose, stepText, stepKey, stepUpload, stepLoading, stepResults, stepConfirmDel]
+    [stepChoose, stepText, stepJson, stepKey, stepUpload, stepLoading, stepResults, stepConfirmDel]
       .forEach((s) => { s.hidden = true; });
     step.hidden = false;
   }
@@ -798,6 +813,11 @@ function flash(row, msg) {
     const key = localStorage.getItem("anthropic-api-key");
     showStep(key ? stepUpload : stepKey);
   });
+  document.getElementById("import-opt-json").addEventListener("click", () => {
+    document.getElementById("import-json-input").value = "";
+    showStep(stepJson);
+  });
+  document.getElementById("import-json-back").addEventListener("click", () => showStep(stepChoose));
   document.getElementById("import-choose-cancel").addEventListener("click", closeModal);
   document.getElementById("import-text-back").addEventListener("click", () => showStep(stepChoose));
 
@@ -810,6 +830,73 @@ function flash(row, msg) {
     if (m) return ((+m[1]) * 60 + +m[2]) * 60 * 1000;
     return null;
   }
+
+  // Prazo vindo do Motion, em texto livre → duração em ms.
+  //   "2d04h" · "14h30m" · "45m" · "15:45"
+  function prazoParaMs(txt) {
+    const t = String(txt ?? "").trim().toLowerCase();
+    if (!t) return null;
+    const hhmm = t.match(/^(\d{1,2}):(\d{2})$/);
+    if (hhmm) return ((+hhmm[1]) * 60 + +hhmm[2]) * 60 * 1000;
+    const d = /(\d+)\s*d/.exec(t);
+    const h = /(\d+)\s*h/.exec(t);
+    const m = /(\d+)\s*m/.exec(t);
+    if (!d && !h && !m) return null;
+    const min = (d ? +d[1] * 24 * 60 : 0) + (h ? +h[1] * 60 : 0) + (m ? +m[1] : 0);
+    return min * 60 * 1000;
+  }
+
+  // JSON do script do Motion. Aceita a FAP tanto em "fap" quanto em
+  // "requisicao" — no Monitor de Pendências o número de 12 dígitos aparece
+  // na coluna de requisição, e é ele que o organizador usa como FAP.
+  function parseJsonMotion(texto) {
+    let dados;
+    try {
+      dados = JSON.parse(texto);
+    } catch {
+      return { erro: "Isso não é um JSON válido." };
+    }
+    const lista = Array.isArray(dados) ? dados : (Array.isArray(dados?.casos) ? dados.casos : null);
+    if (!lista) return { erro: "O JSON precisa ser uma lista de casos." };
+
+    const out = [];
+    for (const item of lista) {
+      if (!item || typeof item !== "object") continue;
+      // O script do Motion chama de "fap" o código interno (CL-26-1495) e de
+      // "requisicao" o número de 12 dígitos, que é a FAP daqui. Aceitamos os
+      // dois nomes e ficamos com o campo que de fato tem 12 dígitos.
+      const fap = [item.fap, item.requisicao, item.numero]
+        .map((v) => String(v ?? "").replace(/\D/g, ""))
+        .find((v) => /^\d{12}$/.test(v)) ?? "";
+      const nome = String(item.nome ?? "").trim();
+      if (!/^\d{12}$/.test(fap) || !nome) continue;
+      const c = { nome, fap };
+      const ms = prazoParaMs(item.prazo);
+      if (ms != null) c.deadline = Date.now() + ms;
+      else if (Number.isFinite(item.deadline)) c.deadline = Number(item.deadline);
+      const uf = String(item.uf ?? "").trim().toUpperCase();
+      if (/^(RJ|SP|GO)$/.test(uf)) c.uf = uf;
+      out.push(c);
+    }
+    return { casos: out };
+  }
+
+  // O JSON sempre representa a lista inteira da tela do Motion, então entra
+  // como fullList — é o que habilita a seção de casos fora da lista.
+  function processarJsonMotion(texto) {
+    const { casos, erro } = parseJsonMotion(texto);
+    if (erro) { showToast(erro, "error"); return false; }
+    if (!casos.length) { showToast("Nenhum caso com FAP de 12 dígitos no JSON.", "error"); return false; }
+    lastPrintOrder = casos.map((c) => normFap(c.fap));
+    localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
+    importModal.hidden = false;
+    showResults(casos, { fullList: true });
+    return true;
+  }
+
+  document.getElementById("import-json-process").addEventListener("click", () => {
+    processarJsonMotion(document.getElementById("import-json-input").value);
+  });
 
   // Parse pasted text — FAP = last 12 digits of the numbers line, name = next line
   function parsePastedText(text) {
@@ -1128,13 +1215,25 @@ Se não encontrar casos, retorne [].`;
     if (jaExistem.length > 0) {
       existingSection.hidden = false;
       existingLabel.textContent = `${jaExistem.length} já existe${jaExistem.length !== 1 ? "m" : ""} no organizador`;
-      jaExistem.forEach(({ c }) => {
+      jaExistem.forEach(({ c, match }) => {
+        // Só oferecemos atualização quando a lista traz prazo e ele mudou de
+        // fato; nenhum outro campo do caso é tocado.
+        const novoPrazo = c.deadline && Number(match.deadline ?? 0) !== c.deadline;
         const row = document.createElement("div");
         row.className = "import-case-row import-case-row--existing";
         row.innerHTML = `
-          <span style="width:16px;flex-shrink:0;">—</span>
+          ${novoPrazo
+            ? `<input type="checkbox" checked style="flex-shrink:0;accent-color:var(--clr-primary);width:16px;height:16px;" title="Atualizar apenas o prazo" />`
+            : `<span style="width:16px;flex-shrink:0;">—</span>`}
           <span class="import-case-row__fap">${escHtml(c.fap)}</span>
-          <span class="import-case-row__nome">${escHtml(c.nome)}</span>`;
+          <span class="import-case-row__nome">${escHtml(c.nome)}</span>
+          ${novoPrazo
+            ? `<span style="font-size:11px;color:var(--clr-text-muted);margin-left:auto;">⏳ ${fmtCountdown(c.deadline)?.text ?? ""}</span>`
+            : ""}`;
+        if (novoPrazo) {
+          row.dataset.id       = match.id;
+          row.dataset.deadline = c.deadline;
+        }
         existingList.appendChild(row);
       });
     } else {
@@ -1168,8 +1267,10 @@ Se não encontrar casos, retorne [].`;
       missingSection.hidden = true;
     }
 
+    const temPrazoNovo = jaExistem.some(({ c, match }) =>
+      c.deadline && Number(match.deadline ?? 0) !== c.deadline);
     confirmBtn.disabled = novos.length === 0 && provaveis.length === 0
-      && reaberturas.length === 0 && ausentes.length === 0;
+      && reaberturas.length === 0 && ausentes.length === 0 && !temPrazoNovo;
     confirmBtn.textContent = "Importar selecionados";
 
     showStep(stepResults);
@@ -1194,13 +1295,15 @@ Se não encontrar casos, retorne [].`;
       ],
       reopenChecked: [...reopenList.querySelectorAll(".import-case-row input:checked")],
       deleteChecked: [...missingList.querySelectorAll(".import-case-row input:checked")],
+      prazoChecked:  [...existingList.querySelectorAll(".import-case-row input:checked")],
     };
   }
 
   // Confirm import — se houver exclusões marcadas, confirma antes
   confirmBtn.addEventListener("click", () => {
-    const { checked, reopenChecked, deleteChecked } = getSelection();
-    if (checked.length === 0 && reopenChecked.length === 0 && deleteChecked.length === 0) {
+    const { checked, reopenChecked, deleteChecked, prazoChecked } = getSelection();
+    if (checked.length === 0 && reopenChecked.length === 0 && deleteChecked.length === 0
+        && prazoChecked.length === 0) {
       showToast("Nenhum caso selecionado.", "error");
       return;
     }
@@ -1228,7 +1331,7 @@ Se não encontrar casos, retorne [].`;
   delConfirmBtn.addEventListener("click", () => runImport());
 
   async function runImport() {
-    const { checked, reopenChecked, deleteChecked } = getSelection();
+    const { checked, reopenChecked, deleteChecked, prazoChecked } = getSelection();
 
     confirmBtn.disabled    = true;
     delConfirmBtn.disabled = true;
@@ -1285,6 +1388,16 @@ Se não encontrar casos, retorne [].`;
         await addDoc(casesCol(), doc);
       }
 
+      // Casos que já existem — atualiza somente o prazo
+      for (const chk of prazoChecked) {
+        const r = chk.closest(".import-case-row");
+        if (!r.dataset.id) continue;
+        await updateDoc(caseDoc(r.dataset.id), {
+          deadline:  Number(r.dataset.deadline),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
       // Casos fora da lista — exclusão já confirmada na etapa anterior
       if (deleteChecked.length) {
         const batch = writeBatch(db);
@@ -1296,6 +1409,7 @@ Se não encontrar casos, retorne [].`;
       const partes = [];
       if (checked.length) partes.push(`${checked.length} importado${checked.length !== 1 ? "s" : ""}`);
       if (reopenChecked.length) partes.push(`${reopenChecked.length} reaberto${reopenChecked.length !== 1 ? "s" : ""}`);
+      if (prazoChecked.length) partes.push(`${prazoChecked.length} prazo${prazoChecked.length !== 1 ? "s" : ""} atualizado${prazoChecked.length !== 1 ? "s" : ""}`);
       if (deleteChecked.length) partes.push(`${deleteChecked.length} excluído${deleteChecked.length !== 1 ? "s" : ""}`);
       showToast(partes.join(" e ") + ".");
     } catch (err) {
@@ -1308,6 +1422,35 @@ Se não encontrar casos, retorne [].`;
       delConfirmBtn.textContent = "Excluir e importar";
     }
   }
+
+  // ── Importação direta por URL ──────────────────────────────────────────────
+  // O script do Motion abre  …/#motion=<JSON em base64>  e a tela já vem com o
+  // comparativo pronto. Nada é gravado sem o clique em "Importar selecionados".
+  function base64ParaTexto(b64) {
+    const bin = atob(b64.replace(/-/g, "+").replace(/_/g, "/"));
+    return new TextDecoder().decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0)));
+  }
+
+  function lerImportacaoDaUrl() {
+    const m = /[#&]motion=([^&]+)/.exec(location.hash);
+    if (!m) return;
+
+    // Limpa a URL antes de processar: evita reimportar num F5.
+    history.replaceState(null, "", location.pathname + location.search);
+
+    let texto;
+    try {
+      texto = base64ParaTexto(decodeURIComponent(m[1]));
+    } catch {
+      showToast("Não consegui ler os dados enviados pelo Motion.", "error");
+      return;
+    }
+    // Espera os casos existentes chegarem — sem eles tudo pareceria novo.
+    quandoCasosCarregarem(() => processarJsonMotion(texto));
+  }
+
+  lerImportacaoDaUrl();
+  window.addEventListener("hashchange", lerImportacaoDaUrl);
 
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {

@@ -224,6 +224,10 @@
             <span style="font-size:18px;">📸</span>
             <span><strong>Enviar print</strong><br><small>Analisa uma imagem do monitor com IA</small></span>
           </button>
+          <button class="btn btn--ghost sort-method-btn" id="import-opt-json">
+            <span style="font-size:18px;">🔗</span>
+            <span><strong>JSON do Motion</strong><br><small>Cole o JSON gerado pelo script do Monitor de Pendências</small></span>
+          </button>
         </div>
         <div class="modal__actions" style="margin-top:16px;">
           <button class="btn btn--ghost" id="import-choose-cancel">Cancelar</button>
@@ -248,6 +252,17 @@
         <div class="modal__actions" style="margin-top:16px;">
           <button class="btn btn--ghost" id="import-text-back">← Voltar</button>
           <button class="btn btn--primary" id="import-text-process">Processar</button>
+        </div>
+      </div>
+
+      <!-- Step: paste JSON from the Motion userscript -->
+      <div id="import-step-json" hidden>
+        <h2>🔗 JSON do Motion</h2>
+        <p>Cole o JSON gerado pelo botão <strong>Extrair casos</strong> no Monitor de Pendências. A lista é tratada como completa: casos do organizador que não estiverem nela aparecem para exclusão.</p>
+        <textarea id="import-json-input" rows="10" placeholder='[{"nome": "MARIA DAS GRAÇAS", "fap": "493274105796", "prazo": "2d04h"}]' style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:monospace;resize:vertical;"></textarea>
+        <div class="modal__actions" style="margin-top:16px;">
+          <button class="btn btn--ghost" id="import-json-back">← Voltar</button>
+          <button class="btn btn--primary" id="import-json-process">Processar</button>
         </div>
       </div>
 
