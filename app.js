@@ -326,13 +326,19 @@ function buildRow(c) {
     ? `<div class="select-badge">${isSelected ? "✓" : ""}</div>`
     : "";
 
+  const cd = c.deadline ? fmtCountdown(c.deadline) : null;
+  const prazoCell = cd
+    ? `<div class="list-row__prazo list-row__prazo--${cd.level}" data-deadline="${c.deadline}" title="${cd.atrasado ? "Atrasado há" : "Vence em"} ${cd.text.replace(/^\+/, "")}">${cd.text}</div>`
+    : `<div class="list-row__prazo list-row__prazo--vazio"></div>`;
+
   row.innerHTML = `
+    ${prazoCell}
     ${reorderBadge}
     <div class="list-row__handle" title="Arrastar para reordenar">⠿</div>
     <button class="list-row__check" data-action="toggle-check" title="Marcar como checado">✓</button>
     <div class="list-row__fap" title="Clique para copiar FAP" style="cursor:pointer;">${escHtml(c.fap)}</div>
     <div class="list-row__main">
-      <div class="list-row__nome"><span class="list-row__nome-text">${escHtml(c.nome)}</span><button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button>${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}${c.tipo === "imuno" ? `<span class="tipo-badge tipo-badge--imuno">IHQ</span>` : ""}${c.deadline ? (() => { const cd = fmtCountdown(c.deadline); return `<span class="prazo-chip prazo-chip--${cd.level}" title="Prazo do caso">⏳ ${cd.text}</span>`; })() : ""}</div>
+      <div class="list-row__nome"><span class="list-row__nome-text">${escHtml(c.nome)}</span><button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button>${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}${c.tipo === "imuno" ? `<span class="tipo-badge tipo-badge--imuno">IHQ</span>` : ""}</div>
       ${lastLogText(c) ? `<div class="list-row__resumo-linha">${escHtml(lastLogText(c))}</div>` : ""}
     </div>
     <select class="status-select status-select--${c.status}" data-action="change-status">${selectOptions}</select>
@@ -2074,18 +2080,25 @@ function clip(str, max) {
 // Countdown até o prazo (deadline em ms). Retorna {text, level} ou null.
 function fmtCountdown(deadline) {
   if (!deadline) return null;
-  const diff = deadline - Date.now();
-  if (diff <= 0) return { text: "Vencido", level: "vencido" };
-  const mins = Math.floor(diff / 60000);
-  const d = Math.floor(mins / 1440);
-  const h = Math.floor((mins % 1440) / 60);
-  const m = mins % 60;
+  const diff     = deadline - Date.now();
+  const atrasado = diff <= 0;
+  const seg      = Math.floor(Math.abs(diff) / 1000);
+  const d = Math.floor(seg / 86400);
+  const h = Math.floor((seg % 86400) / 3600);
+  const m = Math.floor((seg % 3600) / 60);
+  const s = seg % 60;
+  const dd = (n) => String(n).padStart(2, "0");
+
+  // Segundos só na última hora: num prazo de dias eles seriam ruído.
   let text;
-  if (d > 0)      text = `${d}d ${h}h`;
-  else if (h > 0) text = `${h}h ${m}m`;
-  else            text = `${m}m`;
+  if (d > 0)      text = `${d}d ${dd(h)}h`;
+  else if (h > 0) text = `${h}h ${dd(m)}m`;
+  else            text = `${m}m ${dd(s)}s`;
+
+  // Vencido conta para cima, com sinal, para o atraso ficar explícito.
+  if (atrasado) return { text: `+${text}`, level: "vencido", atrasado: true };
   const level = d >= 2 ? "ok" : (d >= 1 ? "warn" : "urgent");
-  return { text, level };
+  return { text, level, atrasado: false };
 }
 
 function fmtStamp(ts) {
@@ -2104,15 +2117,18 @@ function escHtml(str) {
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// ─── Live countdown refresh — atualiza os chips de prazo a cada minuto ─────────
-setInterval(() => {
-  document.querySelectorAll("#case-list .list-row").forEach((row) => {
-    const c    = allCases.find((x) => x.id === row.dataset.id);
-    const chip = row.querySelector(".prazo-chip");
-    if (c && c.deadline && chip) {
-      const cd = fmtCountdown(c.deadline);
-      chip.textContent = `⏳ ${cd.text}`;
-      chip.className = `prazo-chip prazo-chip--${cd.level}`;
-    }
+// ─── Relógio dos prazos ───────────────────────────────────────────────────────
+// Cada célula guarda o próprio deadline, então o tique não depende de procurar
+// o caso em allCases e continua correto depois de qualquer re-render.
+function atualizarPrazos() {
+  document.querySelectorAll(".list-row__prazo[data-deadline]").forEach((el) => {
+    const cd = fmtCountdown(Number(el.dataset.deadline));
+    if (!cd) return;
+    if (el.textContent !== cd.text) el.textContent = cd.text;
+    const classe = `list-row__prazo list-row__prazo--${cd.level}`;
+    if (el.className !== classe) el.className = classe;
   });
-}, 60000);
+}
+setInterval(atualizarPrazos, 1000);
+// Aba em segundo plano tem timer estrangulado; ao voltar, acerta na hora.
+document.addEventListener("visibilitychange", () => { if (!document.hidden) atualizarPrazos(); });

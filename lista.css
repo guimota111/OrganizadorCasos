@@ -74,7 +74,7 @@
 /* ── List rows ───────────────────────────────────────────────────────────────── */
 .list-row {
   display: grid;
-  grid-template-columns: 32px 32px 110px 1fr auto auto 20px;
+  grid-template-columns: 74px 32px 32px 110px 1fr auto auto 20px;
   align-items: center;
   gap: 12px;
   padding: 11px 16px;
@@ -181,20 +181,25 @@
 .uf-badge--sp { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
 .uf-badge--go { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
 
-.prazo-chip {
-  display: inline-block;
-  margin-left: 6px;
-  vertical-align: middle;
-  padding: 1px 8px;
-  border-radius: 12px;
-  font-size: 11px;
+/* Prazo — primeira coluna da linha, não um selo. Números tabulares para o
+   tique de 1s não fazer a largura dançar. */
+.list-row__prazo {
+  font-size: 13px;
   font-weight: 700;
+  line-height: 1.2;
   white-space: nowrap;
+  text-align: right;
+  padding-right: 8px;
+  border-right: 3px solid transparent;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
-.prazo-chip--ok      { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-.prazo-chip--warn    { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
-.prazo-chip--urgent  { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
-.prazo-chip--vencido { background: #b91c1c; color: #fff; border: 1px solid #b91c1c; }
+.list-row__prazo--ok      { color: #166534; border-right-color: #86efac; }
+.list-row__prazo--warn    { color: #92400e; border-right-color: #fbbf24; }
+.list-row__prazo--urgent  { color: #b91c1c; border-right-color: #f87171; }
+.list-row__prazo--vencido { color: #fff; background: #b91c1c; border-right-color: #7f1d1d;
+                            border-radius: 4px; padding: 2px 8px 2px 6px; }
+.list-row__prazo--vazio   { border-right-color: var(--clr-border); }
 
 .list-row__nome {
   font-size: 14px;
@@ -411,6 +416,9 @@
   flex-shrink: 0;
   min-width: 24px;
 }
+.reorder-mode .list-row__handle,
+.select-mode .list-row__handle { display: none; }
+
 .list-row--drag-over {
   box-shadow: inset 0 2px 0 var(--clr-primary);
   background: #eff6ff;
@@ -497,18 +505,24 @@
      FAP + status + carimbo embaixo. Nada quebra — o que não cabe é
      cortado com reticências, e o toque na linha abre o detalhe. */
   .list-row {
-    grid-template-columns: 26px auto minmax(0, 1fr) auto 16px;
+    grid-template-columns: auto 26px auto minmax(0, 1fr) auto 16px;
     grid-template-areas:
-      "check main main   main  chevron"
-      "check fap  status stamp stamp";
+      "prazo check main main   main  chevron"
+      "prazo check fap  status stamp stamp";
     column-gap: 7px;
     row-gap: 5px;
     padding: 9px 12px;
   }
   .list-row__handle        { display: none; }
+  /* min-width fixo: cada linha é um grid próprio, então sem isso a linha sem
+     prazo colapsaria a primeira coluna e desalinharia da lista. */
+  .list-row__prazo         { grid-area: prazo; align-self: center; font-size: 12px;
+                             padding-right: 6px; margin-right: 2px; min-width: 56px; }
   .list-row__check         { grid-area: check; align-self: center; }
   .list-row__main          { grid-area: main; }
   .list-row__chevron       { grid-area: chevron; align-self: center; }
+  /* min-width explícito: a coluna da FAP é compartilhada com o span do nome e,
+     sem isso, encolhe até virar reticências. */
   .list-row__fap           { grid-area: fap; align-self: center; font-size: 11px; letter-spacing: 0; }
   .status-select           { grid-area: status; justify-self: stretch; width: 100%; font-size: 11px; padding: 3px 8px; }
   .list-row > .badge       { grid-area: status; justify-self: start; }
@@ -533,8 +547,7 @@
     text-overflow: ellipsis;
   }
   .list-row__nome .uf-badge,
-  .list-row__nome .tipo-badge,
-  .list-row__nome .prazo-chip { margin-left: 0; flex-shrink: 0; }
+  .list-row__nome .tipo-badge { margin-left: 0; flex-shrink: 0; }
   /* Botão de copiar nome só aparece com a linha aberta (não há hover no toque) */
   .copy-nome-btn { display: none; }
   .list-row--expanded .copy-nome-btn { display: inline-block; flex-shrink: 0; }
