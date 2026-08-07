@@ -25,6 +25,7 @@
   margin-bottom: 12px;
 }
 .list-toolbar__filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.list-toolbar__actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .list-toolbar__hint { font-size: 12px; color: var(--clr-text-muted); }
 
 .filter-btn {
@@ -274,6 +275,8 @@
 .inline-edit { display: flex; flex-direction: column; gap: 10px; }
 .inline-edit__row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .inline-edit__field { display: flex; flex-direction: column; gap: 4px; }
+.inline-edit__field--narrow { max-width: 120px; }
+.inline-edit__field--tiny   { max-width: 90px; }
 .inline-edit__field label {
   font-size: 11px;
   font-weight: 700;
@@ -490,44 +493,86 @@
 
 /* ── Responsive ──────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  /* Two-deck row: name on top, FAP + status + stamp below */
+  /* Two-deck row, cada deck em UMA linha só: nome + selos em cima,
+     FAP + status + carimbo embaixo. Nada quebra — o que não cabe é
+     cortado com reticências, e o toque na linha abre o detalhe. */
   .list-row {
-    grid-template-columns: 28px 28px 1fr auto 18px;
+    grid-template-columns: 26px auto minmax(0, 1fr) auto 16px;
     grid-template-areas:
-      "handle check main   main  chevron"
-      "fap    fap   status stamp stamp";
-    row-gap: 8px;
-    padding: 10px 12px;
+      "check main main   main  chevron"
+      "check fap  status stamp stamp";
+    column-gap: 7px;
+    row-gap: 5px;
+    padding: 9px 12px;
   }
-  .list-row__handle        { grid-area: handle; }
-  .list-row__check         { grid-area: check; }
+  .list-row__handle        { display: none; }
+  .list-row__check         { grid-area: check; align-self: center; }
   .list-row__main          { grid-area: main; }
-  .list-row__chevron       { grid-area: chevron; }
-  .list-row__fap           { grid-area: fap; align-self: center; }
-  .status-select           { grid-area: status; justify-self: start; max-width: 100%; }
+  .list-row__chevron       { grid-area: chevron; align-self: center; }
+  .list-row__fap           { grid-area: fap; align-self: center; font-size: 11px; letter-spacing: 0; }
+  .status-select           { grid-area: status; justify-self: stretch; width: 100%; font-size: 11px; padding: 3px 8px; }
   .list-row > .badge       { grid-area: status; justify-self: start; }
-  .list-row__checked-stamp { grid-area: stamp; justify-self: end; font-size: 10px; padding: 3px 7px; }
+  .list-row__checked-stamp { grid-area: stamp; justify-self: end; align-self: center; font-size: 10px; padding: 2px 7px; }
+  .list-row__checked-stamp .stamp-prefix,
+  .list-row__checked-stamp .stamp-date { display: none; }
   .list-row__detail        { grid-area: auto; grid-column: 1 / -1; }
   .list-row > div:not([class]) { display: none; }
 
-  .list-row__nome { white-space: normal; font-size: 13px; }
-  .list-row__resumo-linha { white-space: normal; }
+  /* Nome numa linha só, com os selos (UF / IHQ / prazo) sempre visíveis ao lado */
+  .list-row__nome {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .list-row__nome-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .list-row__nome .uf-badge,
+  .list-row__nome .tipo-badge,
+  .list-row__nome .prazo-chip { margin-left: 0; flex-shrink: 0; }
+  /* Botão de copiar nome só aparece com a linha aberta (não há hover no toque) */
+  .copy-nome-btn { display: none; }
+  .list-row--expanded .copy-nome-btn { display: inline-block; flex-shrink: 0; }
+  .list-row__resumo-linha {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-  /* Toolbar stacks; filters scroll sideways */
-  .list-toolbar { flex-direction: column; align-items: stretch; }
-  .list-toolbar__filters {
+  /* Modos reordenar / selecionar: o marcador ocupa o lugar do ✓ */
+  .reorder-mode .list-row__check,
+  .select-mode  .list-row__check { display: none; }
+  .reorder-badge, .select-badge  { grid-area: check; align-self: center; }
+
+  /* Toolbar stacks; filtros e ações rolam de lado em vez de quebrar */
+  .list-toolbar { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; margin-top: 12px; }
+  .list-toolbar__filters,
+  .list-toolbar__actions {
+    min-width: 0;
     flex-wrap: nowrap;
     overflow-x: auto;
+    gap: 8px;
     padding-bottom: 4px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
-  .list-toolbar__filters::-webkit-scrollbar { display: none; }
-  .filter-btn { flex-shrink: 0; }
+  .list-toolbar__filters::-webkit-scrollbar,
+  .list-toolbar__actions::-webkit-scrollbar { display: none; }
+  .filter-btn,
+  .list-toolbar__actions .btn { flex-shrink: 0; }
   .list-toolbar__hint { display: none; }
 
   /* Inline edit single column */
   .inline-edit__row { grid-template-columns: 1fr; }
   .list-row__detail { padding: 12px; }
   .list-row__detail-actions .btn { flex: 1 1 calc(50% - 8px); }
+  /* Resumo com 15 linhas empurra os botões para longe no celular */
+  .list-row__detail .ie-resumo { height: 140px; min-height: 140px; }
+  .inline-edit__field--narrow,
+  .inline-edit__field--tiny { max-width: none; }
 }

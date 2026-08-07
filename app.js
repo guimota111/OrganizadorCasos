@@ -25,9 +25,9 @@ let lastPrintOrder  = JSON.parse(localStorage.getItem("lastPrintOrder") || "[]")
 const expandedIds   = new Set();
 
 // A importação por URL (#motion=…) só pode rodar depois que os casos existentes
-// chegarem — sem eles, tudo pareceria "novo" e nada seria reconhecido.
-let casosCarregados    = false;
-const aguardandoCasos  = [];
+// chegarem — sem eles, todos pareceriam "novos" e nada seria reconhecido.
+let casosCarregados   = false;
+const aguardandoCasos = [];
 function quandoCasosCarregarem(fn) {
   if (casosCarregados) fn();
   else aguardandoCasos.push(fn);
@@ -180,8 +180,8 @@ onAuthStateChanged(auth, async (user) => {
     mainHeader.hidden   = true;
     mainContent.hidden  = true;
     if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
-    allCases = [];
     casosCarregados = false;
+    allCases = [];
   }
 });
 
@@ -332,11 +332,11 @@ function buildRow(c) {
     <button class="list-row__check" data-action="toggle-check" title="Marcar como checado">✓</button>
     <div class="list-row__fap" title="Clique para copiar FAP" style="cursor:pointer;">${escHtml(c.fap)}</div>
     <div class="list-row__main">
-      <div class="list-row__nome">${escHtml(c.nome)}<button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button>${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}${c.tipo === "imuno" ? `<span class="tipo-badge tipo-badge--imuno">IHQ</span>` : ""}${c.deadline ? (() => { const cd = fmtCountdown(c.deadline); return `<span class="prazo-chip prazo-chip--${cd.level}" title="Prazo do caso">⏳ ${cd.text}</span>`; })() : ""}</div>
+      <div class="list-row__nome"><span class="list-row__nome-text">${escHtml(c.nome)}</span><button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button>${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}${c.tipo === "imuno" ? `<span class="tipo-badge tipo-badge--imuno">IHQ</span>` : ""}${c.deadline ? (() => { const cd = fmtCountdown(c.deadline); return `<span class="prazo-chip prazo-chip--${cd.level}" title="Prazo do caso">⏳ ${cd.text}</span>`; })() : ""}</div>
       ${lastLogText(c) ? `<div class="list-row__resumo-linha">${escHtml(lastLogText(c))}</div>` : ""}
     </div>
     <select class="status-select status-select--${c.status}" data-action="change-status">${selectOptions}</select>
-    ${c.checked && c.checkedAt ? `<span class="list-row__checked-stamp">Visto em ${fmtStamp(c.checkedAt)}</span>` : ""}
+    ${c.checked && c.checkedAt ? `<span class="list-row__checked-stamp"><span class="stamp-prefix">Visto em </span>${fmtStamp(c.checkedAt)}</span>` : ""}
     <span class="list-row__chevron" aria-hidden="true">▾</span>
     <div class="list-row__detail" hidden>
       <div class="inline-edit">
@@ -349,14 +349,14 @@ function buildRow(c) {
             <label>FAP</label>
             <input type="text" class="ie-fap" value="${escHtml(c.fap)}" />
           </div>
-          <div class="inline-edit__field" style="max-width:120px;">
+          <div class="inline-edit__field inline-edit__field--narrow">
             <label>Tipo</label>
             <select class="ie-tipo">
               <option value="he"${(c.tipo ?? "he") === "he" ? " selected" : ""}>HE</option>
               <option value="imuno"${c.tipo === "imuno" ? " selected" : ""}>Imuno (IHQ)</option>
             </select>
           </div>
-          <div class="inline-edit__field" style="max-width:90px;">
+          <div class="inline-edit__field inline-edit__field--tiny">
             <label>Estado</label>
             <select class="ie-uf">
               <option value=""${!c.uf ? " selected" : ""}>—</option>
@@ -566,7 +566,7 @@ function buildReleasedRow(c) {
     <div></div>
     <div class="list-row__fap" style="color:var(--clr-text-muted);cursor:pointer;" title="Clique para copiar FAP">${escHtml(c.fap)}</div>
     <div class="list-row__main">
-        <div class="list-row__nome" style="color:var(--clr-text-muted);font-weight:500;">${escHtml(c.nome)}<button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button></div>
+        <div class="list-row__nome" style="color:var(--clr-text-muted);font-weight:500;"><span class="list-row__nome-text">${escHtml(c.nome)}</span><button class="copy-nome-btn" title="Copiar nome" tabindex="-1">⎘</button></div>
         ${lastLogText(c) ? `<div class="list-row__resumo-linha" style="color:var(--clr-text-muted);">${escHtml(lastLogText(c))}</div>` : ""}
       </div>
     <span class="badge badge--liberado">Liberado ${when}</span>
@@ -779,15 +779,19 @@ function flash(row, msg) {
   const reopenList      = document.getElementById("import-reopen-list");
   const reopenSection   = document.getElementById("import-reopen-section");
   const reopenLabel     = document.getElementById("import-reopen-label");
-  const sobrandoList    = document.getElementById("import-sobrando-list");
-  const sobrandoSection = document.getElementById("import-sobrando-section");
-  const sobrandoLabel   = document.getElementById("import-sobrando-label");
+  const missingList     = document.getElementById("import-missing-list");
+  const missingSection  = document.getElementById("import-missing-section");
+  const missingLabel    = document.getElementById("import-missing-label");
+  const stepConfirmDel  = document.getElementById("import-step-confirm-delete");
+  const deleteMsg       = document.getElementById("import-delete-msg");
+  const deleteList      = document.getElementById("import-delete-list");
   const confirmBtn     = document.getElementById("import-confirm-btn");
 
   let selectedFile = null;
 
   function showStep(step) {
-    [stepChoose, stepText, stepJson, stepKey, stepUpload, stepLoading, stepResults].forEach((s) => { s.hidden = true; });
+    [stepChoose, stepText, stepJson, stepKey, stepUpload, stepLoading, stepResults, stepConfirmDel]
+      .forEach((s) => { s.hidden = true; });
     step.hidden = false;
   }
 
@@ -813,24 +817,86 @@ function flash(row, msg) {
     document.getElementById("import-json-input").value = "";
     showStep(stepJson);
   });
+  document.getElementById("import-json-back").addEventListener("click", () => showStep(stepChoose));
   document.getElementById("import-choose-cancel").addEventListener("click", closeModal);
   document.getElementById("import-text-back").addEventListener("click", () => showStep(stepChoose));
-  document.getElementById("import-json-back").addEventListener("click", () => showStep(stepChoose));
 
   // Prazo (tempo restante) no início da linha → duração em ms
-  //   "3d08h" → dias/horas   |   "14h30m" → horas/minutos
-  //   "45m"   → minutos      |   "15:45"  → horas:minutos
+  //   "3d08h" → dias/horas   |   "15:45" → horas:minutos
   function parsePrazoMs(line) {
     let m = line.match(/^(\d+)d\s*(\d+)h/);
     if (m) return ((+m[1] * 24 + +m[2]) * 60) * 60 * 1000;
-    m = line.match(/^(\d+)h\s*(\d+)m/);
-    if (m) return ((+m[1]) * 60 + +m[2]) * 60 * 1000;
     m = line.match(/^(\d{1,2}):(\d{2})/);
     if (m) return ((+m[1]) * 60 + +m[2]) * 60 * 1000;
-    m = line.match(/^(\d+)\s*m(?!\S)/);
-    if (m) return (+m[1]) * 60 * 1000;
     return null;
   }
+
+  // Prazo vindo do Motion, em texto livre → duração em ms.
+  //   "2d04h" · "14h30m" · "45m" · "15:45"
+  function prazoParaMs(txt) {
+    const t = String(txt ?? "").trim().toLowerCase();
+    if (!t) return null;
+    const hhmm = t.match(/^(\d{1,2}):(\d{2})$/);
+    if (hhmm) return ((+hhmm[1]) * 60 + +hhmm[2]) * 60 * 1000;
+    const d = /(\d+)\s*d/.exec(t);
+    const h = /(\d+)\s*h/.exec(t);
+    const m = /(\d+)\s*m/.exec(t);
+    if (!d && !h && !m) return null;
+    const min = (d ? +d[1] * 24 * 60 : 0) + (h ? +h[1] * 60 : 0) + (m ? +m[1] : 0);
+    return min * 60 * 1000;
+  }
+
+  // JSON do script do Motion. Aceita a FAP tanto em "fap" quanto em
+  // "requisicao" — no Monitor de Pendências o número de 12 dígitos aparece
+  // na coluna de requisição, e é ele que o organizador usa como FAP.
+  function parseJsonMotion(texto) {
+    let dados;
+    try {
+      dados = JSON.parse(texto);
+    } catch {
+      return { erro: "Isso não é um JSON válido." };
+    }
+    const lista = Array.isArray(dados) ? dados : (Array.isArray(dados?.casos) ? dados.casos : null);
+    if (!lista) return { erro: "O JSON precisa ser uma lista de casos." };
+
+    const out = [];
+    for (const item of lista) {
+      if (!item || typeof item !== "object") continue;
+      // O script do Motion chama de "fap" o código interno (CL-26-1495) e de
+      // "requisicao" o número de 12 dígitos, que é a FAP daqui. Aceitamos os
+      // dois nomes e ficamos com o campo que de fato tem 12 dígitos.
+      const fap = [item.fap, item.requisicao, item.numero]
+        .map((v) => String(v ?? "").replace(/\D/g, ""))
+        .find((v) => /^\d{12}$/.test(v)) ?? "";
+      const nome = String(item.nome ?? "").trim();
+      if (!/^\d{12}$/.test(fap) || !nome) continue;
+      const c = { nome, fap };
+      const ms = prazoParaMs(item.prazo);
+      if (ms != null) c.deadline = Date.now() + ms;
+      else if (Number.isFinite(item.deadline)) c.deadline = Number(item.deadline);
+      const uf = String(item.uf ?? "").trim().toUpperCase();
+      if (/^(RJ|SP|GO)$/.test(uf)) c.uf = uf;
+      out.push(c);
+    }
+    return { casos: out };
+  }
+
+  // O JSON sempre representa a lista inteira da tela do Motion, então entra
+  // como fullList — é o que habilita a seção de casos fora da lista.
+  function processarJsonMotion(texto) {
+    const { casos, erro } = parseJsonMotion(texto);
+    if (erro) { showToast(erro, "error"); return false; }
+    if (!casos.length) { showToast("Nenhum caso com FAP de 12 dígitos no JSON.", "error"); return false; }
+    lastPrintOrder = casos.map((c) => normFap(c.fap));
+    localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
+    importModal.hidden = false;
+    showResults(casos, { fullList: true });
+    return true;
+  }
+
+  document.getElementById("import-json-process").addEventListener("click", () => {
+    processarJsonMotion(document.getElementById("import-json-input").value);
+  });
 
   // Parse pasted text — FAP = last 12 digits of the numbers line, name = next line
   function parsePastedText(text) {
@@ -867,70 +933,10 @@ function flash(row, msg) {
       showToast("Nenhum caso reconhecido no texto colado.", "error");
       return;
     }
+    const scope = document.querySelector('input[name="import-scope"]:checked')?.value;
     lastPrintOrder = extracted.map((c) => normFap(c.fap));
     localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
-    showResults(extracted, { listaCompleta: true });
-  });
-
-  // ── JSON vindo do script do Monitor de Pendências ──────────────────────────
-  // Aceita [{…}] ou {casos:[…]}. O FAP é o número de 12 dígitos; o script do
-  // Motion também manda o prazo como "2d04h" e/ou em horas decimais.
-  function parseCasosJson(texto) {
-    let dados;
-    try {
-      dados = JSON.parse(texto);
-    } catch {
-      throw new Error("JSON inválido.");
-    }
-    if (dados && !Array.isArray(dados) && Array.isArray(dados.casos)) dados = dados.casos;
-    if (!Array.isArray(dados)) throw new Error("O JSON precisa ser uma lista de casos.");
-
-    const out = [];
-    for (const item of dados) {
-      if (!item || typeof item !== "object") continue;
-      const fap = String(item.fap ?? item.requisicao ?? "").replace(/\D/g, "").slice(-12);
-      if (!/^\d{12}$/.test(fap)) continue;
-      const c = { nome: String(item.nome ?? "").trim(), fap };
-      const deadline = deadlineDoItem(item);
-      if (deadline != null) c.deadline = deadline;
-      if (item.uf) c.uf = String(item.uf).toUpperCase();
-      out.push(c);
-    }
-    return out;
-  }
-
-  function deadlineDoItem(item) {
-    if (typeof item.deadline === "number" && item.deadline > 0) return item.deadline;
-    if (item.prazo) {
-      const ms = parsePrazoMs(String(item.prazo).trim());
-      if (ms != null) return Date.now() + ms;
-    }
-    const horas = Number(item.horas);
-    if (Number.isFinite(horas) && horas > 0) return Date.now() + horas * 3600000;
-    return null;
-  }
-
-  function processarJson(texto) {
-    let extracted;
-    try {
-      extracted = parseCasosJson(texto);
-    } catch (err) {
-      showToast(err.message, "error");
-      return false;
-    }
-    if (!extracted.length) {
-      showToast("Nenhum caso com FAP de 12 dígitos no JSON.", "error");
-      return false;
-    }
-    lastPrintOrder = extracted.map((c) => normFap(c.fap));
-    localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
-    importModal.hidden = false;
-    showResults(extracted, { listaCompleta: true });
-    return true;
-  }
-
-  document.getElementById("import-json-process").addEventListener("click", () => {
-    processarJson(document.getElementById("import-json-input").value);
+    showResults(extracted, { fullList: scope === "full" });
   });
 
   function closeModal() {
@@ -1118,41 +1124,32 @@ Se não encontrar casos, retorne [].`;
     return allCases.find((ex) => ex.liberado && normNome(ex.nome) && nameSimilar(nome, normNome(ex.nome))) ?? null;
   }
 
-  // listaCompleta: a origem representa TODA a lista de pendências (texto colado
-  // ou JSON do Motion). Só nesse caso faz sentido apontar o que está sobrando no
-  // organizador — num print parcial isso proporia excluir caso legítimo.
-  function showResults(extracted, { listaCompleta = false } = {}) {
+  function showResults(extracted, { fullList = false } = {}) {
     const novos      = [];
     const jaExistem  = [];
     const provaveis  = [];   // name match but FAP slightly different (open cases)
     const reaberturas = [];  // name match in released cases → offer to reopen
+    const matchedIds = new Set();  // cases already in the organizer that the list covers
 
     for (const c of extracted) {
       const dup = findDuplicate(c);
+      if (dup) matchedIds.add(dup.match.id);
       if (dup && dup.reason === "fap") { jaExistem.push({ c, match: dup.match }); continue; }
       if (dup && dup.reason === "nome" && !dup.match.liberado) { provaveis.push({ c, match: dup.match }); continue; }
       const rel = findReleasedMatch(c);
-      if (rel) { reaberturas.push({ c, match: rel }); continue; }
+      if (rel) { matchedIds.add(rel.id); reaberturas.push({ c, match: rel }); continue; }
       novos.push(c);
     }
-
-    // Ativos no organizador que não vieram na lista importada.
-    const fapsDaLista = new Set(extracted.map((c) => normFap(c.fap)));
-    const sobrando = listaCompleta
-      ? allCases.filter((c) => !c.liberado && !fapsDaLista.has(normFap(c.fap)))
-      : [];
 
     newList.innerHTML      = "";
     existingList.innerHTML = "";
     probableList.innerHTML = "";
     reopenList.innerHTML   = "";
-    sobrandoList.innerHTML = "";
+    missingList.innerHTML  = "";
 
     if (novos.length === 0) {
       newList.innerHTML = `<p style="font-size:13px;color:var(--clr-text-muted);padding:8px 0;">Nenhum caso novo encontrado.</p>`;
-      confirmBtn.disabled = true;
     } else {
-      confirmBtn.disabled = false;
       novos.forEach((c) => {
         const row = document.createElement("div");
         row.className = "import-case-row";
@@ -1215,83 +1212,131 @@ Se não encontrar casos, retorne [].`;
       reopenSection.hidden = true;
     }
 
-    // Já existem: nada é recriado; quando a lista traz prazo, oferecemos
-    // atualizar SOMENTE o prazo (marcado por padrão).
-    const comPrazoNovo = jaExistem.filter(({ c }) => c.deadline != null).length;
-
     if (jaExistem.length > 0) {
       existingSection.hidden = false;
-      existingLabel.textContent = comPrazoNovo
-        ? `${jaExistem.length} já existe${jaExistem.length !== 1 ? "m" : ""} — ${comPrazoNovo} com prazo para atualizar`
-        : `${jaExistem.length} já existe${jaExistem.length !== 1 ? "m" : ""} no organizador`;
+      existingLabel.textContent = `${jaExistem.length} já existe${jaExistem.length !== 1 ? "m" : ""} no organizador`;
       jaExistem.forEach(({ c, match }) => {
-        const atualizavel = c.deadline != null;
+        // Só oferecemos atualização quando a lista traz prazo e ele mudou de
+        // fato; nenhum outro campo do caso é tocado.
+        const novoPrazo = c.deadline && Number(match.deadline ?? 0) !== c.deadline;
         const row = document.createElement("div");
         row.className = "import-case-row import-case-row--existing";
         row.innerHTML = `
-          ${atualizavel
-            ? `<input type="checkbox" checked style="flex-shrink:0;accent-color:var(--clr-primary);width:16px;height:16px;" title="Atualizar o prazo deste caso" />`
+          ${novoPrazo
+            ? `<input type="checkbox" checked style="flex-shrink:0;accent-color:var(--clr-primary);width:16px;height:16px;" title="Atualizar apenas o prazo" />`
             : `<span style="width:16px;flex-shrink:0;">—</span>`}
           <span class="import-case-row__fap">${escHtml(c.fap)}</span>
-          <span class="import-case-row__nome">${escHtml(c.nome || match.nome)}</span>
-          ${atualizavel
+          <span class="import-case-row__nome">${escHtml(c.nome)}</span>
+          ${novoPrazo
             ? `<span style="font-size:11px;color:var(--clr-text-muted);margin-left:auto;">⏳ ${fmtCountdown(c.deadline)?.text ?? ""}</span>`
             : ""}`;
-        row.dataset.id = match.id;
-        if (atualizavel) row.dataset.deadline = c.deadline;
+        if (novoPrazo) {
+          row.dataset.id       = match.id;
+          row.dataset.deadline = c.deadline;
+        }
         existingList.appendChild(row);
       });
     } else {
       existingSection.hidden = true;
     }
 
-    // Sobrando — ativos no organizador ausentes da lista importada.
-    if (sobrando.length > 0) {
-      sobrandoSection.hidden = false;
-      sobrandoLabel.textContent =
-        `${sobrando.length} no organizador fora da lista${sobrando.length !== 1 ? "" : ""}`;
-      sobrando.forEach((c) => {
+    // Lista completa — casos abertos no organizador que não vieram na lista
+    const ausentes = fullList
+      ? allCases
+          .filter((c) => !c.liberado && !matchedIds.has(c.id))
+          .sort((a, b) => (a.listOrder ?? a.sortOrder ?? 0) - (b.listOrder ?? b.sortOrder ?? 0))
+      : [];
+
+    if (ausentes.length > 0) {
+      missingSection.hidden = false;
+      missingLabel.textContent = `${ausentes.length} caso${ausentes.length !== 1 ? "s" : ""} fora da lista`;
+      ausentes.forEach((c) => {
         const row = document.createElement("div");
-        row.className = "import-case-row import-case-row--sobrando";
+        row.className = "import-case-row import-case-row--missing";
         row.innerHTML = `
-          <input type="checkbox" style="flex-shrink:0;accent-color:#dc2626;width:16px;height:16px;" title="Excluir este caso" />
-          <span class="import-case-row__fap">${escHtml(c.fap)}</span>
-          <span class="import-case-row__nome">${escHtml(c.nome)}</span>
-          <span style="font-size:11px;color:#b91c1c;margin-left:auto;">excluir</span>`;
-        row.dataset.id = c.id;
-        sobrandoList.appendChild(row);
+          <input type="checkbox" checked style="flex-shrink:0;accent-color:var(--clr-danger);width:16px;height:16px;" />
+          <span class="import-case-row__fap">${escHtml(c.fap ?? "")}</span>
+          <span class="import-case-row__nome">${escHtml(c.nome ?? "")}</span>
+          ${c.uf ? `<span class="uf-badge uf-badge--${c.uf.toLowerCase()}">${c.uf}</span>` : ""}`;
+        row.dataset.id   = c.id;
+        row.dataset.nome = c.nome ?? "";
+        row.dataset.fap  = c.fap ?? "";
+        missingList.appendChild(row);
       });
     } else {
-      sobrandoSection.hidden = true;
+      missingSection.hidden = true;
     }
 
-    // Há algo a fazer? (novos, prazos a atualizar, reaberturas ou exclusões)
-    confirmBtn.disabled = !(novos.length || provaveis.length || reaberturas.length ||
-      comPrazoNovo || sobrando.length);
-    confirmBtn.textContent = "Aplicar selecionados";
+    const temPrazoNovo = jaExistem.some(({ c, match }) =>
+      c.deadline && Number(match.deadline ?? 0) !== c.deadline);
+    confirmBtn.disabled = novos.length === 0 && provaveis.length === 0
+      && reaberturas.length === 0 && ausentes.length === 0 && !temPrazoNovo;
+    confirmBtn.textContent = "Importar selecionados";
 
     showStep(stepResults);
   }
 
+  // Marcar / desmarcar todos os casos fora da lista
+  document.getElementById("import-missing-all").addEventListener("click", () => {
+    missingList.querySelectorAll("input[type=checkbox]").forEach((i) => { i.checked = true; });
+  });
+  document.getElementById("import-missing-none").addEventListener("click", () => {
+    missingList.querySelectorAll("input[type=checkbox]").forEach((i) => { i.checked = false; });
+  });
+
   // Back to upload
   document.getElementById("import-results-back").addEventListener("click", () => showStep(stepChoose));
 
-  // Confirm import
-  confirmBtn.addEventListener("click", async () => {
-    const checked = [
-      ...newList.querySelectorAll(".import-case-row input:checked"),
-      ...probableList.querySelectorAll(".import-case-row input:checked"),
-    ];
-    const reopenChecked   = [...reopenList.querySelectorAll(".import-case-row input:checked")];
-    const prazoChecked    = [...existingList.querySelectorAll(".import-case-row input:checked")];
-    const sobrandoChecked = [...sobrandoList.querySelectorAll(".import-case-row input:checked")];
-    if (!checked.length && !reopenChecked.length && !prazoChecked.length && !sobrandoChecked.length) {
+  function getSelection() {
+    return {
+      checked: [
+        ...newList.querySelectorAll(".import-case-row input:checked"),
+        ...probableList.querySelectorAll(".import-case-row input:checked"),
+      ],
+      reopenChecked: [...reopenList.querySelectorAll(".import-case-row input:checked")],
+      deleteChecked: [...missingList.querySelectorAll(".import-case-row input:checked")],
+      prazoChecked:  [...existingList.querySelectorAll(".import-case-row input:checked")],
+    };
+  }
+
+  // Confirm import — se houver exclusões marcadas, confirma antes
+  confirmBtn.addEventListener("click", () => {
+    const { checked, reopenChecked, deleteChecked, prazoChecked } = getSelection();
+    if (checked.length === 0 && reopenChecked.length === 0 && deleteChecked.length === 0
+        && prazoChecked.length === 0) {
       showToast("Nenhum caso selecionado.", "error");
       return;
     }
+    if (deleteChecked.length > 0) {
+      const n = deleteChecked.length;
+      deleteMsg.textContent = `${n} caso${n !== 1 ? "s" : ""} do organizador não ${n !== 1 ? "estão" : "está"} na lista colada e ser${n !== 1 ? "ão" : "á"} excluído${n !== 1 ? "s" : ""} definitivamente:`;
+      deleteList.innerHTML = "";
+      deleteChecked.forEach((chk) => {
+        const r   = chk.closest(".import-case-row");
+        const row = document.createElement("div");
+        row.className = "import-case-row import-case-row--missing";
+        row.innerHTML = `
+          <span class="import-case-row__fap">${escHtml(r.dataset.fap)}</span>
+          <span class="import-case-row__nome">${escHtml(r.dataset.nome)}</span>`;
+        deleteList.appendChild(row);
+      });
+      showStep(stepConfirmDel);
+      return;
+    }
+    runImport();
+  });
 
-    confirmBtn.disabled = true;
-    confirmBtn.textContent = "Aplicando…";
+  const delConfirmBtn = document.getElementById("import-delete-confirm");
+  document.getElementById("import-delete-cancel").addEventListener("click", () => showStep(stepResults));
+  delConfirmBtn.addEventListener("click", () => runImport());
+
+  async function runImport() {
+    const { checked, reopenChecked, deleteChecked, prazoChecked } = getSelection();
+
+    confirmBtn.disabled    = true;
+    delConfirmBtn.disabled = true;
+    confirmBtn.textContent = "Importando…";
+    delConfirmBtn.textContent = "Excluindo…";
 
     try {
       const maxOrder = allCases
@@ -1343,20 +1388,20 @@ Se não encontrar casos, retorne [].`;
         await addDoc(casesCol(), doc);
       }
 
-      // Casos que já existiam: só o prazo é tocado, nada mais.
+      // Casos que já existem — atualiza somente o prazo
       for (const chk of prazoChecked) {
         const r = chk.closest(".import-case-row");
-        if (!r.dataset.id || !r.dataset.deadline) continue;
+        if (!r.dataset.id) continue;
         await updateDoc(caseDoc(r.dataset.id), {
           deadline:  Number(r.dataset.deadline),
           updatedAt: serverTimestamp(),
         });
       }
 
-      // Sobrando marcados — exclusão em lote.
-      if (sobrandoChecked.length) {
+      // Casos fora da lista — exclusão já confirmada na etapa anterior
+      if (deleteChecked.length) {
         const batch = writeBatch(db);
-        sobrandoChecked.forEach((chk) => batch.delete(caseDoc(chk.closest(".import-case-row").dataset.id)));
+        deleteChecked.forEach((chk) => batch.delete(caseDoc(chk.closest(".import-case-row").dataset.id)));
         await batch.commit();
       }
 
@@ -1365,31 +1410,25 @@ Se não encontrar casos, retorne [].`;
       if (checked.length) partes.push(`${checked.length} importado${checked.length !== 1 ? "s" : ""}`);
       if (reopenChecked.length) partes.push(`${reopenChecked.length} reaberto${reopenChecked.length !== 1 ? "s" : ""}`);
       if (prazoChecked.length) partes.push(`${prazoChecked.length} prazo${prazoChecked.length !== 1 ? "s" : ""} atualizado${prazoChecked.length !== 1 ? "s" : ""}`);
-      if (sobrandoChecked.length) partes.push(`${sobrandoChecked.length} excluído${sobrandoChecked.length !== 1 ? "s" : ""}`);
-      showToast(partes.join(", ") + ".");
+      if (deleteChecked.length) partes.push(`${deleteChecked.length} excluído${deleteChecked.length !== 1 ? "s" : ""}`);
+      showToast(partes.join(" e ") + ".");
     } catch (err) {
       showToast("Erro ao importar: " + err.message, "error");
-      confirmBtn.disabled = false;
-      confirmBtn.textContent = "Aplicar selecionados";
+      showStep(stepResults);
+    } finally {
+      confirmBtn.disabled       = false;
+      confirmBtn.textContent    = "Importar selecionados";
+      delConfirmBtn.disabled    = false;
+      delConfirmBtn.textContent = "Excluir e importar";
     }
-  });
-
-  function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload  = () => resolve(reader.result.split(",")[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
   }
 
   // ── Importação direta por URL ──────────────────────────────────────────────
   // O script do Motion abre  …/#motion=<JSON em base64>  e a tela já vem com o
-  // comparativo pronto. Nada é gravado sem o clique em "Aplicar selecionados".
+  // comparativo pronto. Nada é gravado sem o clique em "Importar selecionados".
   function base64ParaTexto(b64) {
     const bin = atob(b64.replace(/-/g, "+").replace(/_/g, "/"));
-    const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
-    return new TextDecoder().decode(bytes);
+    return new TextDecoder().decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0)));
   }
 
   function lerImportacaoDaUrl() {
@@ -1407,11 +1446,20 @@ Se não encontrar casos, retorne [].`;
       return;
     }
     // Espera os casos existentes chegarem — sem eles tudo pareceria novo.
-    quandoCasosCarregarem(() => processarJson(texto));
+    quandoCasosCarregarem(() => processarJsonMotion(texto));
   }
 
   lerImportacaoDaUrl();
   window.addEventListener("hashchange", lerImportacaoDaUrl);
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 })();
 
 // ─── Sort modal ──────────────────────────────────────────────────────────────
@@ -2036,7 +2084,9 @@ function fmtStamp(ts) {
   const d = new Date(ts.seconds * 1000);
   const hm = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const dm = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-  return `${hm} ${dm}`;
+  // Data em span próprio: no celular só a hora aparece, para o carimbo não
+  // roubar espaço do seletor de status.
+  return `${hm}<span class="stamp-date"> ${dm}</span>`;
 }
 
 function escHtml(str) {

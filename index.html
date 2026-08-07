@@ -164,7 +164,7 @@
         <button class="filter-btn" data-filter="pendencia">⏳ Pendência <span class="filter-count" id="cnt-f-pendencia">—</span></button>
         <button class="filter-btn" data-filter="outros">🔵 Outros <span class="filter-count" id="cnt-f-outros">—</span></button>
       </div>
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div class="list-toolbar__actions">
         <button class="btn btn--ghost btn--sm" id="sort-open-btn">⇅ Ordenar</button>
         <button class="btn btn--primary btn--sm" id="reorder-confirm-btn" hidden>✓ Confirmar ordem</button>
         <button class="btn btn--ghost btn--sm" id="reorder-cancel-btn" hidden>✕ Cancelar</button>
@@ -226,7 +226,7 @@
           </button>
           <button class="btn btn--ghost sort-method-btn" id="import-opt-json">
             <span style="font-size:18px;">🔗</span>
-            <span><strong>JSON do Motion</strong><br><small>Sincroniza com a lista extraída pelo script do monitor</small></span>
+            <span><strong>JSON do Motion</strong><br><small>Cole o JSON gerado pelo script do Monitor de Pendências</small></span>
           </button>
         </div>
         <div class="modal__actions" style="margin-top:16px;">
@@ -239,17 +239,27 @@
         <h2>📋 Colar texto</h2>
         <p>Cole a lista. Cada caso deve ter a linha com os números (a FAP são os 12 últimos dígitos) e a linha do nome logo abaixo.</p>
         <textarea id="import-text-input" rows="10" placeholder="01:56970304122454&#10;MARIA DAS GRAÇAS&#10;RJ-26-163854&#10;..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:monospace;resize:vertical;"></textarea>
+        <div class="import-scope" style="margin-top:12px;">
+          <label class="import-scope__opt">
+            <input type="radio" name="import-scope" value="full" checked />
+            <span><strong>Lista completa</strong><br><small>Estou colando a lista inteira — mostrar os casos do organizador que não estão nela para eu excluir</small></span>
+          </label>
+          <label class="import-scope__opt">
+            <input type="radio" name="import-scope" value="partial" />
+            <span><strong>Parte da lista</strong><br><small>Só adicionar os casos colados, sem mexer no resto</small></span>
+          </label>
+        </div>
         <div class="modal__actions" style="margin-top:16px;">
           <button class="btn btn--ghost" id="import-text-back">← Voltar</button>
           <button class="btn btn--primary" id="import-text-process">Processar</button>
         </div>
       </div>
 
-      <!-- Step: paste JSON (Motion) -->
+      <!-- Step: paste JSON from the Motion userscript -->
       <div id="import-step-json" hidden>
         <h2>🔗 JSON do Motion</h2>
-        <p>Cole o JSON gerado pelo script do Monitor de Pendências. Casos novos são adicionados, os que já existem têm <strong>apenas o prazo</strong> atualizado, e os que estão no organizador mas não vieram na lista aparecem para você decidir se apaga.</p>
-        <textarea id="import-json-input" rows="10" placeholder='[{"fap":"493274105796","nome":"MARIA DOS SANTOS","prazo":"2d04h"}]' style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:monospace;resize:vertical;"></textarea>
+        <p>Cole o JSON gerado pelo botão <strong>Extrair casos</strong> no Monitor de Pendências. A lista é tratada como completa: casos do organizador que não estiverem nela aparecem para exclusão.</p>
+        <textarea id="import-json-input" rows="10" placeholder='[{"nome": "MARIA DAS GRAÇAS", "fap": "493274105796", "prazo": "2d04h"}]' style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:monospace;resize:vertical;"></textarea>
         <div class="modal__actions" style="margin-top:16px;">
           <button class="btn btn--ghost" id="import-json-back">← Voltar</button>
           <button class="btn btn--primary" id="import-json-process">Processar</button>
@@ -313,14 +323,29 @@
           <p class="import-section-label import-section-label--existing" id="import-existing-label"></p>
           <div id="import-existing-list"></div>
         </div>
-        <div id="import-sobrando-section" hidden style="margin-top:16px;">
-          <p class="import-section-label import-section-label--sobrando" id="import-sobrando-label"></p>
-          <p style="font-size:11px;color:var(--clr-text-muted);margin:-4px 0 6px;">Estes casos estão ativos no organizador mas não vieram na lista. Marque os que quiser <strong>excluir</strong> — nada é apagado sem marcação.</p>
-          <div id="import-sobrando-list"></div>
+        <div id="import-missing-section" hidden style="margin-top:16px;">
+          <p class="import-section-label import-section-label--missing" id="import-missing-label"></p>
+          <p style="font-size:11px;color:var(--clr-text-muted);margin:-4px 0 6px;">Estão no organizador mas não aparecem na lista colada. Marque os que quiser excluir.</p>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <button type="button" class="btn btn--ghost btn--sm" id="import-missing-all">Marcar todos</button>
+            <button type="button" class="btn btn--ghost btn--sm" id="import-missing-none">Desmarcar todos</button>
+          </div>
+          <div id="import-missing-list"></div>
         </div>
         <div class="modal__actions" style="margin-top:20px;">
           <button class="btn btn--ghost" id="import-results-back">← Voltar</button>
           <button class="btn btn--primary" id="import-confirm-btn">Importar selecionados</button>
+        </div>
+      </div>
+
+      <!-- Step: confirm deletion of cases missing from the pasted list -->
+      <div id="import-step-confirm-delete" hidden>
+        <h2>🗑️ Confirmar exclusão</h2>
+        <p id="import-delete-msg" style="margin-top:8px;"></p>
+        <div id="import-delete-list" style="margin-top:12px;max-height:320px;overflow-y:auto;"></div>
+        <div class="modal__actions" style="margin-top:20px;">
+          <button class="btn btn--ghost" id="import-delete-cancel">← Voltar</button>
+          <button class="btn btn--danger" id="import-delete-confirm">Excluir e importar</button>
         </div>
       </div>
 
