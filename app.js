@@ -2097,7 +2097,8 @@ function fmtCountdown(deadline) {
 
   // Vencido conta para cima, com sinal, para o atraso ficar explícito.
   if (atrasado) return { text: `+${text}`, level: "vencido", atrasado: true };
-  const level = d >= 2 ? "ok" : (d >= 1 ? "warn" : "urgent");
+  // Três faixas: verde no prazo, âmbar nas últimas 3h, vermelho vencido.
+  const level = diff <= 3 * 3600 * 1000 ? "warn" : "ok";
   return { text, level, atrasado: false };
 }
 
