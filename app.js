@@ -24,6 +24,15 @@ const selectedIds   = new Set();   // IDs selected for bulk delete
 let lastPrintOrder  = JSON.parse(localStorage.getItem("lastPrintOrder") || "[]");
 const expandedIds   = new Set();
 
+// A importação por URL (#motion=…) só pode rodar depois que os casos existentes
+// chegarem — sem eles, tudo pareceria "novo" e nada seria reconhecido.
+let casosCarregados    = false;
+const aguardandoCasos  = [];
+function quandoCasosCarregarem(fn) {
+  if (casosCarregados) fn();
+  else aguardandoCasos.push(fn);
+}
+
 // lastPrintOrder restored from localStorage — sort button always available
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
@@ -158,6 +167,10 @@ onAuthStateChanged(auth, async (user) => {
       (snap) => {
         allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         render();
+        if (!casosCarregados) {
+          casosCarregados = true;
+          aguardandoCasos.splice(0).forEach((fn) => fn());
+        }
       },
       (err) => showToast("Erro ao carregar casos: " + err.message, "error")
     );
@@ -168,6 +181,7 @@ onAuthStateChanged(auth, async (user) => {
     mainContent.hidden  = true;
     if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
     allCases = [];
+    casosCarregados = false;
   }
 });
 
@@ -742,6 +756,7 @@ function flash(row, msg) {
   const importModal    = document.getElementById("import-modal");
   const stepChoose     = document.getElementById("import-step-choose");
   const stepText       = document.getElementById("import-step-text");
+  const stepJson       = document.getElementById("import-step-json");
   const stepKey        = document.getElementById("import-step-key");
   const stepUpload     = document.getElementById("import-step-upload");
   const stepLoading    = document.getElementById("import-step-loading");
@@ -764,12 +779,15 @@ function flash(row, msg) {
   const reopenList      = document.getElementById("import-reopen-list");
   const reopenSection   = document.getElementById("import-reopen-section");
   const reopenLabel     = document.getElementById("import-reopen-label");
+  const sobrandoList    = document.getElementById("import-sobrando-list");
+  const sobrandoSection = document.getElementById("import-sobrando-section");
+  const sobrandoLabel   = document.getElementById("import-sobrando-label");
   const confirmBtn     = document.getElementById("import-confirm-btn");
 
   let selectedFile = null;
 
   function showStep(step) {
-    [stepChoose, stepText, stepKey, stepUpload, stepLoading, stepResults].forEach((s) => { s.hidden = true; });
+    [stepChoose, stepText, stepJson, stepKey, stepUpload, stepLoading, stepResults].forEach((s) => { s.hidden = true; });
     step.hidden = false;
   }
 
@@ -791,16 +809,26 @@ function flash(row, msg) {
     const key = localStorage.getItem("anthropic-api-key");
     showStep(key ? stepUpload : stepKey);
   });
+  document.getElementById("import-opt-json").addEventListener("click", () => {
+    document.getElementById("import-json-input").value = "";
+    showStep(stepJson);
+  });
   document.getElementById("import-choose-cancel").addEventListener("click", closeModal);
   document.getElementById("import-text-back").addEventListener("click", () => showStep(stepChoose));
+  document.getElementById("import-json-back").addEventListener("click", () => showStep(stepChoose));
 
   // Prazo (tempo restante) no início da linha → duração em ms
-  //   "3d08h" → dias/horas   |   "15:45" → horas:minutos
+  //   "3d08h" → dias/horas   |   "14h30m" → horas/minutos
+  //   "45m"   → minutos      |   "15:45"  → horas:minutos
   function parsePrazoMs(line) {
     let m = line.match(/^(\d+)d\s*(\d+)h/);
     if (m) return ((+m[1] * 24 + +m[2]) * 60) * 60 * 1000;
+    m = line.match(/^(\d+)h\s*(\d+)m/);
+    if (m) return ((+m[1]) * 60 + +m[2]) * 60 * 1000;
     m = line.match(/^(\d{1,2}):(\d{2})/);
     if (m) return ((+m[1]) * 60 + +m[2]) * 60 * 1000;
+    m = line.match(/^(\d+)\s*m(?!\S)/);
+    if (m) return (+m[1]) * 60 * 1000;
     return null;
   }
 
@@ -841,7 +869,68 @@ function flash(row, msg) {
     }
     lastPrintOrder = extracted.map((c) => normFap(c.fap));
     localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
-    showResults(extracted);
+    showResults(extracted, { listaCompleta: true });
+  });
+
+  // ── JSON vindo do script do Monitor de Pendências ──────────────────────────
+  // Aceita [{…}] ou {casos:[…]}. O FAP é o número de 12 dígitos; o script do
+  // Motion também manda o prazo como "2d04h" e/ou em horas decimais.
+  function parseCasosJson(texto) {
+    let dados;
+    try {
+      dados = JSON.parse(texto);
+    } catch {
+      throw new Error("JSON inválido.");
+    }
+    if (dados && !Array.isArray(dados) && Array.isArray(dados.casos)) dados = dados.casos;
+    if (!Array.isArray(dados)) throw new Error("O JSON precisa ser uma lista de casos.");
+
+    const out = [];
+    for (const item of dados) {
+      if (!item || typeof item !== "object") continue;
+      const fap = String(item.fap ?? item.requisicao ?? "").replace(/\D/g, "").slice(-12);
+      if (!/^\d{12}$/.test(fap)) continue;
+      const c = { nome: String(item.nome ?? "").trim(), fap };
+      const deadline = deadlineDoItem(item);
+      if (deadline != null) c.deadline = deadline;
+      if (item.uf) c.uf = String(item.uf).toUpperCase();
+      out.push(c);
+    }
+    return out;
+  }
+
+  function deadlineDoItem(item) {
+    if (typeof item.deadline === "number" && item.deadline > 0) return item.deadline;
+    if (item.prazo) {
+      const ms = parsePrazoMs(String(item.prazo).trim());
+      if (ms != null) return Date.now() + ms;
+    }
+    const horas = Number(item.horas);
+    if (Number.isFinite(horas) && horas > 0) return Date.now() + horas * 3600000;
+    return null;
+  }
+
+  function processarJson(texto) {
+    let extracted;
+    try {
+      extracted = parseCasosJson(texto);
+    } catch (err) {
+      showToast(err.message, "error");
+      return false;
+    }
+    if (!extracted.length) {
+      showToast("Nenhum caso com FAP de 12 dígitos no JSON.", "error");
+      return false;
+    }
+    lastPrintOrder = extracted.map((c) => normFap(c.fap));
+    localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
+    importModal.hidden = false;
+    showResults(extracted, { listaCompleta: true });
+    return true;
+  }
+
+  document.getElementById("import-json-process").addEventListener("click", () => {
+    processarJson(document.getElementById("import-json-input").value);
   });
 
   function closeModal() {
@@ -1029,7 +1118,10 @@ Se não encontrar casos, retorne [].`;
     return allCases.find((ex) => ex.liberado && normNome(ex.nome) && nameSimilar(nome, normNome(ex.nome))) ?? null;
   }
 
-  function showResults(extracted) {
+  // listaCompleta: a origem representa TODA a lista de pendências (texto colado
+  // ou JSON do Motion). Só nesse caso faz sentido apontar o que está sobrando no
+  // organizador — num print parcial isso proporia excluir caso legítimo.
+  function showResults(extracted, { listaCompleta = false } = {}) {
     const novos      = [];
     const jaExistem  = [];
     const provaveis  = [];   // name match but FAP slightly different (open cases)
@@ -1044,10 +1136,17 @@ Se não encontrar casos, retorne [].`;
       novos.push(c);
     }
 
+    // Ativos no organizador que não vieram na lista importada.
+    const fapsDaLista = new Set(extracted.map((c) => normFap(c.fap)));
+    const sobrando = listaCompleta
+      ? allCases.filter((c) => !c.liberado && !fapsDaLista.has(normFap(c.fap)))
+      : [];
+
     newList.innerHTML      = "";
     existingList.innerHTML = "";
     probableList.innerHTML = "";
     reopenList.innerHTML   = "";
+    sobrandoList.innerHTML = "";
 
     if (novos.length === 0) {
       newList.innerHTML = `<p style="font-size:13px;color:var(--clr-text-muted);padding:8px 0;">Nenhum caso novo encontrado.</p>`;
@@ -1116,21 +1215,60 @@ Se não encontrar casos, retorne [].`;
       reopenSection.hidden = true;
     }
 
+    // Já existem: nada é recriado; quando a lista traz prazo, oferecemos
+    // atualizar SOMENTE o prazo (marcado por padrão).
+    const comPrazoNovo = jaExistem.filter(({ c }) => c.deadline != null).length;
+
     if (jaExistem.length > 0) {
       existingSection.hidden = false;
-      existingLabel.textContent = `${jaExistem.length} já existe${jaExistem.length !== 1 ? "m" : ""} no organizador`;
-      jaExistem.forEach(({ c }) => {
+      existingLabel.textContent = comPrazoNovo
+        ? `${jaExistem.length} já existe${jaExistem.length !== 1 ? "m" : ""} — ${comPrazoNovo} com prazo para atualizar`
+        : `${jaExistem.length} já existe${jaExistem.length !== 1 ? "m" : ""} no organizador`;
+      jaExistem.forEach(({ c, match }) => {
+        const atualizavel = c.deadline != null;
         const row = document.createElement("div");
         row.className = "import-case-row import-case-row--existing";
         row.innerHTML = `
-          <span style="width:16px;flex-shrink:0;">—</span>
+          ${atualizavel
+            ? `<input type="checkbox" checked style="flex-shrink:0;accent-color:var(--clr-primary);width:16px;height:16px;" title="Atualizar o prazo deste caso" />`
+            : `<span style="width:16px;flex-shrink:0;">—</span>`}
           <span class="import-case-row__fap">${escHtml(c.fap)}</span>
-          <span class="import-case-row__nome">${escHtml(c.nome)}</span>`;
+          <span class="import-case-row__nome">${escHtml(c.nome || match.nome)}</span>
+          ${atualizavel
+            ? `<span style="font-size:11px;color:var(--clr-text-muted);margin-left:auto;">⏳ ${fmtCountdown(c.deadline)?.text ?? ""}</span>`
+            : ""}`;
+        row.dataset.id = match.id;
+        if (atualizavel) row.dataset.deadline = c.deadline;
         existingList.appendChild(row);
       });
     } else {
       existingSection.hidden = true;
     }
+
+    // Sobrando — ativos no organizador ausentes da lista importada.
+    if (sobrando.length > 0) {
+      sobrandoSection.hidden = false;
+      sobrandoLabel.textContent =
+        `${sobrando.length} no organizador fora da lista${sobrando.length !== 1 ? "" : ""}`;
+      sobrando.forEach((c) => {
+        const row = document.createElement("div");
+        row.className = "import-case-row import-case-row--sobrando";
+        row.innerHTML = `
+          <input type="checkbox" style="flex-shrink:0;accent-color:#dc2626;width:16px;height:16px;" title="Excluir este caso" />
+          <span class="import-case-row__fap">${escHtml(c.fap)}</span>
+          <span class="import-case-row__nome">${escHtml(c.nome)}</span>
+          <span style="font-size:11px;color:#b91c1c;margin-left:auto;">excluir</span>`;
+        row.dataset.id = c.id;
+        sobrandoList.appendChild(row);
+      });
+    } else {
+      sobrandoSection.hidden = true;
+    }
+
+    // Há algo a fazer? (novos, prazos a atualizar, reaberturas ou exclusões)
+    confirmBtn.disabled = !(novos.length || provaveis.length || reaberturas.length ||
+      comPrazoNovo || sobrando.length);
+    confirmBtn.textContent = "Aplicar selecionados";
 
     showStep(stepResults);
   }
@@ -1144,11 +1282,16 @@ Se não encontrar casos, retorne [].`;
       ...newList.querySelectorAll(".import-case-row input:checked"),
       ...probableList.querySelectorAll(".import-case-row input:checked"),
     ];
-    const reopenChecked = [...reopenList.querySelectorAll(".import-case-row input:checked")];
-    if (checked.length === 0 && reopenChecked.length === 0) { showToast("Nenhum caso selecionado.", "error"); return; }
+    const reopenChecked   = [...reopenList.querySelectorAll(".import-case-row input:checked")];
+    const prazoChecked    = [...existingList.querySelectorAll(".import-case-row input:checked")];
+    const sobrandoChecked = [...sobrandoList.querySelectorAll(".import-case-row input:checked")];
+    if (!checked.length && !reopenChecked.length && !prazoChecked.length && !sobrandoChecked.length) {
+      showToast("Nenhum caso selecionado.", "error");
+      return;
+    }
 
     confirmBtn.disabled = true;
-    confirmBtn.textContent = "Importando…";
+    confirmBtn.textContent = "Aplicando…";
 
     try {
       const maxOrder = allCases
@@ -1200,16 +1343,34 @@ Se não encontrar casos, retorne [].`;
         await addDoc(casesCol(), doc);
       }
 
+      // Casos que já existiam: só o prazo é tocado, nada mais.
+      for (const chk of prazoChecked) {
+        const r = chk.closest(".import-case-row");
+        if (!r.dataset.id || !r.dataset.deadline) continue;
+        await updateDoc(caseDoc(r.dataset.id), {
+          deadline:  Number(r.dataset.deadline),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      // Sobrando marcados — exclusão em lote.
+      if (sobrandoChecked.length) {
+        const batch = writeBatch(db);
+        sobrandoChecked.forEach((chk) => batch.delete(caseDoc(chk.closest(".import-case-row").dataset.id)));
+        await batch.commit();
+      }
+
       closeModal();
-      const total = checked.length + reopenChecked.length;
       const partes = [];
       if (checked.length) partes.push(`${checked.length} importado${checked.length !== 1 ? "s" : ""}`);
       if (reopenChecked.length) partes.push(`${reopenChecked.length} reaberto${reopenChecked.length !== 1 ? "s" : ""}`);
-      showToast(partes.join(" e ") + ".");
+      if (prazoChecked.length) partes.push(`${prazoChecked.length} prazo${prazoChecked.length !== 1 ? "s" : ""} atualizado${prazoChecked.length !== 1 ? "s" : ""}`);
+      if (sobrandoChecked.length) partes.push(`${sobrandoChecked.length} excluído${sobrandoChecked.length !== 1 ? "s" : ""}`);
+      showToast(partes.join(", ") + ".");
     } catch (err) {
       showToast("Erro ao importar: " + err.message, "error");
       confirmBtn.disabled = false;
-      confirmBtn.textContent = "Importar selecionados";
+      confirmBtn.textContent = "Aplicar selecionados";
     }
   });
 
@@ -1221,6 +1382,36 @@ Se não encontrar casos, retorne [].`;
       reader.readAsDataURL(file);
     });
   }
+
+  // ── Importação direta por URL ──────────────────────────────────────────────
+  // O script do Motion abre  …/#motion=<JSON em base64>  e a tela já vem com o
+  // comparativo pronto. Nada é gravado sem o clique em "Aplicar selecionados".
+  function base64ParaTexto(b64) {
+    const bin = atob(b64.replace(/-/g, "+").replace(/_/g, "/"));
+    const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
+
+  function lerImportacaoDaUrl() {
+    const m = /[#&]motion=([^&]+)/.exec(location.hash);
+    if (!m) return;
+
+    // Limpa a URL antes de processar: evita reimportar num F5.
+    history.replaceState(null, "", location.pathname + location.search);
+
+    let texto;
+    try {
+      texto = base64ParaTexto(decodeURIComponent(m[1]));
+    } catch {
+      showToast("Não consegui ler os dados enviados pelo Motion.", "error");
+      return;
+    }
+    // Espera os casos existentes chegarem — sem eles tudo pareceria novo.
+    quandoCasosCarregarem(() => processarJson(texto));
+  }
+
+  lerImportacaoDaUrl();
+  window.addEventListener("hashchange", lerImportacaoDaUrl);
 })();
 
 // ─── Sort modal ──────────────────────────────────────────────────────────────
