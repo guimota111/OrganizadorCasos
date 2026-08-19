@@ -595,8 +595,12 @@ document.addEventListener("keydown", async (e) => {
     return;
   }
 
-  // Digitando num campo, Shift+letra é maiúscula — não é atalho.
-  if (digitando || !e.shiftKey) return;
+  // Digitando num campo, Shift+letra é maiúscula — não é atalho. A exceção é o
+  // "Nova entrada…" vazio: é onde o cursor cai ao navegar com Shift+seta, então
+  // enquanto não há texto os atalhos valem ali; ao primeiro caractere digitado
+  // as teclas voltam a ser letras.
+  const logVazio = e.target.classList?.contains("ie-log-new") && e.target.value === "";
+  if ((digitando && !logVazio) || !e.shiftKey) return;
 
   // Shift+Enter: marca/desmarca o caso como checado (o ✓ da lista).
   if (e.key === "Enter") {
