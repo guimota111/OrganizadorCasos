@@ -447,7 +447,8 @@ function buildRow(c) {
   // Enter no "Nova entrada…" (resumo em uma linha) equivale a clicar "Adicionar"
   const logInput = row.querySelector(".ie-log-new");
   if (logInput) logInput.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
+    // Shift+Enter é o atalho de checar o caso — aqui só o Enter puro adiciona.
+    if (e.key !== "Enter" || e.shiftKey) return;
     e.preventDefault();
     e.stopPropagation();
     row.querySelector('[data-action="add-log"]')?.click();
@@ -575,6 +576,22 @@ document.addEventListener("keydown", async (e) => {
   }
 
   if (!e.shiftKey) return;
+
+  // Shift+Enter: marca/desmarca o caso como checado (o ✓ da lista).
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const agoraChecado = !c.checked;
+    try {
+      await updateDoc(caseDoc(c.id), {
+        checked: agoraChecado,
+        checkedAt: agoraChecado ? serverTimestamp() : null,
+      });
+      showToast(`${c.fap} ${agoraChecado ? "✓ checado" : "sem o ✓ de checado"}`);
+    } catch (err) {
+      showToast("Erro ao marcar: " + err.message, "error");
+    }
+    return;
+  }
 
   // Shift+1 / Shift+2: copia FAP e nome. Usa e.code para não depender do
   // layout do teclado (em ABNT2 Shift+1 produz "!").
