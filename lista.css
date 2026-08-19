@@ -464,6 +464,8 @@
 .list-row--pendencia:hover { background: #fecaca !important; }
 .list-row--outros    { border-left: 3px solid #93c5fd; background: #dbeafe; }
 .list-row--outros:hover { background: #bfdbfe !important; }
+.list-row--fisico    { border-left: 3px solid #a855f7; background: #f3e8ff; }
+.list-row--fisico:hover { background: #e9d5ff !important; }
 
 /* ── Checked stamp ───────────────────────────────────────────────────────── */
 .list-row__checked-stamp {
@@ -500,6 +502,7 @@
 .status-select--parcial   { background: #fed7aa;  color: #9a3412; border-color: #f97316; }
 .status-select--pendencia { background: #fee2e2;  color: #991b1b; border-color: #dc2626; }
 .status-select--outros    { background: #dbeafe;  color: #1e40af; border-color: #93c5fd; }
+.status-select--fisico    { background: #f3e8ff;  color: #6b21a8; border-color: #a855f7; }
 
 /* hidden by filter */
 .list-row--hidden { display: none; }

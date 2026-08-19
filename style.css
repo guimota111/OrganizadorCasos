@@ -161,6 +161,7 @@ body {
 .stat-card--pendencia::before  { background: #dc2626; }
 .stat-card--parcial::before    { background: #f97316; }
 .stat-card--outros::before     { background: #60a5fa; }
+.stat-card--fisico::before     { background: #a855f7; }
 .stat-card--liberado::before   { background: #cbd5e1; }
 .stat-card--nao-visto .stat-card__value { color: #64748b; }
 .stat-card--visto .stat-card__value     { color: #92400e; }
@@ -168,6 +169,7 @@ body {
 .stat-card--pendencia .stat-card__value { color: #991b1b; }
 .stat-card--parcial .stat-card__value   { color: #ea580c; }
 .stat-card--outros .stat-card__value    { color: #2563eb; }
+.stat-card--fisico .stat-card__value    { color: #7e22ce; }
 .stat-card--liberado .stat-card__value  { color: var(--clr-text-muted); }
 .stat-card__label {
   font-size: 12px;
