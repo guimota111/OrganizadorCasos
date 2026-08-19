@@ -535,10 +535,30 @@ function anyModalOpen() {
   return [...document.querySelectorAll(".modal-overlay")].some((m) => !m.hidden);
 }
 
+// Abre o caso vizinho na lista visível (Tab / Shift+Tab), circulando nas pontas.
+function moveExpanded(row, passo) {
+  const rows = [...caseListEl.querySelectorAll(".list-row")];
+  const idx  = rows.indexOf(row);
+  if (idx === -1 || rows.length < 2) return;
+  const alvo = rows[(idx + passo + rows.length) % rows.length];
+  openRowDetail(alvo);
+  alvo.scrollIntoView({ block: "nearest" });
+}
+
+async function copiar(texto, aviso) {
+  if (!texto) return;
+  try {
+    await navigator.clipboard.writeText(texto);
+    showToast(`${aviso} copiado: ${texto}`);
+  } catch {
+    showToast("Não foi possível copiar.", "error");
+  }
+}
+
 document.addEventListener("keydown", async (e) => {
-  // Shift puro: Ctrl/Alt/Cmd são atalhos do navegador.
-  if (!e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
-  // Digitando num campo, Shift+letra é maiúscula — não é atalho.
+  // Ctrl/Alt/Cmd são atalhos do navegador.
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  // Digitando num campo, Shift+letra é maiúscula e Tab troca de campo.
   if (isTypingTarget(e.target)) return;
   if (anyModalOpen() || reorderMode || selectMode) return;
 
@@ -546,6 +566,20 @@ document.addEventListener("keydown", async (e) => {
   if (!row) return;
   const c = allCases.find((x) => x.id === row.dataset.id);
   if (!c) return;
+
+  // Tab / Shift+Tab: navega entre os casos, abrindo um de cada vez.
+  if (e.key === "Tab") {
+    e.preventDefault();
+    moveExpanded(row, e.shiftKey ? -1 : 1);
+    return;
+  }
+
+  if (!e.shiftKey) return;
+
+  // Shift+1 / Shift+2: copia FAP e nome. Usa e.code para não depender do
+  // layout do teclado (em ABNT2 Shift+1 produz "!").
+  if (e.code === "Digit1") { e.preventDefault(); await copiar(c.fap, "FAP");   return; }
+  if (e.code === "Digit2") { e.preventDefault(); await copiar(c.nome, "Nome"); return; }
 
   if (e.key === "Delete") {
     e.preventDefault();
