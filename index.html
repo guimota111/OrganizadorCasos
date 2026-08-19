@@ -80,6 +80,10 @@
         <div class="stat-card__value" id="cnt-outros">—</div>
         <div class="stat-card__label">Outros</div>
       </div>
+      <div class="stat-card stat-card--fisico">
+        <div class="stat-card__value" id="cnt-fisico">—</div>
+        <div class="stat-card__label">Casos físicos</div>
+      </div>
       <div class="stat-card stat-card--liberado">
         <div class="stat-card__value" id="cnt-liberado">—</div>
         <div class="stat-card__label">Liberados</div>
@@ -138,6 +142,10 @@
                   <input type="radio" name="status" value="outros" />
                   🔵 Outros — caso de outro profissional
                 </label>
+                <label class="radio-label">
+                  <input type="radio" name="status" value="fisico" />
+                  🟣 Caso físico — material em mãos
+                </label>
               </div>
             </div>
             <div class="form-group form-group--full" id="pendencia-group" hidden>
@@ -163,6 +171,7 @@
         <button class="filter-btn" data-filter="parcial">🟠 Parc. montado <span class="filter-count" id="cnt-f-parcial">—</span></button>
         <button class="filter-btn" data-filter="pendencia">⏳ Pendência <span class="filter-count" id="cnt-f-pendencia">—</span></button>
         <button class="filter-btn" data-filter="outros">🔵 Outros <span class="filter-count" id="cnt-f-outros">—</span></button>
+        <button class="filter-btn" data-filter="fisico">🟣 Caso físico <span class="filter-count" id="cnt-f-fisico">—</span></button>
       </div>
       <div class="list-toolbar__actions">
         <button class="btn btn--ghost btn--sm" id="sort-open-btn">⇅ Ordenar</button>
@@ -175,6 +184,7 @@
         <button class="btn btn--ghost btn--sm" id="select-cancel-btn" hidden>✕ Cancelar</button>
         <button class="btn btn--ghost btn--sm" id="export-open-btn">📤 Exportar</button>
         <p class="list-toolbar__hint">Arraste as linhas para reordenar</p>
+        <p class="list-toolbar__hint" title="Valem para o caso aberto (só um fica aberto por vez)">⌨ No caso aberto: Shift+L laudado · Shift+P pendência · Shift+O outros · Shift+F caso físico · Shift+I aguarda IHQ · Shift+Delete excluir</p>
       </div>
     </div>
 

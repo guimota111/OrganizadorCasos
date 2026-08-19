@@ -22,7 +22,9 @@ let reorderQueue    = [];   // IDs in the order the user clicks
 let selectMode      = false;
 const selectedIds   = new Set();   // IDs selected for bulk delete
 let lastPrintOrder  = JSON.parse(localStorage.getItem("lastPrintOrder") || "[]");
-const expandedIds   = new Set();
+// Só um caso fica descolapsado por vez: abrir um fecha os outros, e é sobre
+// ele que os atalhos de teclado agem.
+let expandedId      = null;
 
 // A importação por URL (#motion=…) só pode rodar depois que os casos existentes
 // chegarem — sem eles, todos pareceriam "novos" e nada seria reconhecido.
@@ -218,19 +220,18 @@ function render() {
   document.getElementById("cnt-parcial").textContent  = open.filter((c) => c.status === "parcial").length;
   document.getElementById("cnt-pendencia").textContent= open.filter((c) => c.status === "pendencia").length;
   document.getElementById("cnt-outros").textContent   = open.filter((c) => c.status === "outros").length;
+  document.getElementById("cnt-fisico").textContent   = open.filter((c) => c.status === "fisico").length;
   document.getElementById("cnt-liberado").textContent = released.length;
   document.getElementById("badge-liberado").textContent = released.length;
   updateFilterCounts(open);
 
-  // Save unsaved textarea content from expanded rows before rebuilding
-  const savedResumo = {};
-  expandedIds.forEach((id) => {
-    const r = caseListEl.querySelector(`[data-id="${id}"]`);
-    if (r) {
-      const ta = r.querySelector(".ie-resumo");
-      if (ta) savedResumo[id] = ta.value;
-    }
-  });
+  // Save unsaved textarea content from the expanded row before rebuilding
+  let savedResumo = null;
+  if (expandedId) {
+    const r  = caseListEl.querySelector(`[data-id="${expandedId}"]`);
+    const ta = r?.querySelector(".ie-resumo");
+    if (ta) savedResumo = ta.value;
+  }
 
   // open list
   caseListEl.innerHTML = "";
@@ -238,16 +239,16 @@ function render() {
   emptyList.hidden = visible.length > 0;
   visible.forEach((c) => caseListEl.appendChild(buildRow(c)));
   // restore accordion state and unsaved textarea content after re-render
-  expandedIds.forEach((id) => {
-    const r = caseListEl.querySelector(`[data-id="${id}"]`);
+  if (expandedId) {
+    const r = caseListEl.querySelector(`[data-id="${expandedId}"]`);
     if (r) {
       openRowDetail(r);
-      if (savedResumo[id] !== undefined) {
+      if (savedResumo !== null) {
         const ta = r.querySelector(".ie-resumo");
-        if (ta) ta.value = savedResumo[id];
+        if (ta) ta.value = savedResumo;
       }
     }
-  });
+  }
   initDrag(caseListEl);
 
   // released list
@@ -264,6 +265,7 @@ function updateFilterCounts(open) {
   document.getElementById("cnt-f-parcial").textContent     = open.filter((c) => c.status === "parcial").length;
   document.getElementById("cnt-f-pendencia").textContent   = open.filter((c) => c.status === "pendencia").length;
   document.getElementById("cnt-f-outros").textContent      = open.filter((c) => c.status === "outros").length;
+  document.getElementById("cnt-f-fisico").textContent      = open.filter((c) => c.status === "fisico").length;
 }
 
 // ─── Filter buttons ───────────────────────────────────────────────────────────
@@ -305,6 +307,7 @@ const STATUS_OPTIONS = [
   { value: "parcial",   label: "🟠 Parcialmente montado" },
   { value: "pendencia", label: "⏳ Pendência" },
   { value: "outros",    label: "🔵 Outros" },
+  { value: "fisico",    label: "🟣 Caso físico" },
 ];
 
 // ─── Open case row ────────────────────────────────────────────────────────────
@@ -441,6 +444,14 @@ function buildRow(c) {
   row.querySelectorAll("[data-action]").forEach((btn) =>
     btn.addEventListener("click", (e) => handleRowAction(e, c, row))
   );
+  // Enter no "Nova entrada…" (resumo em uma linha) equivale a clicar "Adicionar"
+  const logInput = row.querySelector(".ie-log-new");
+  if (logInput) logInput.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    e.stopPropagation();
+    row.querySelector('[data-action="add-log"]')?.click();
+  });
   // Tipo dropdown change (HE / Imuno)
   const tipoSel = row.querySelector(".ie-tipo");
   if (tipoSel) tipoSel.addEventListener("change", async (e) => {
@@ -463,33 +474,121 @@ function buildRow(c) {
 }
 
 function openRowDetail(row) {
+  // Acordeão: abrir um caso fecha qualquer outro que esteja descolapsado.
+  document.querySelectorAll(".list-row--expanded").forEach((other) => {
+    if (other !== row) collapseRowDetail(other);
+  });
   const detail  = row.querySelector(".list-row__detail");
   const chevron = row.querySelector(".list-row__chevron");
   detail.hidden = false;
   row.classList.add("list-row--expanded");
   chevron.style.transform = "rotate(180deg)";
-  expandedIds.add(row.dataset.id);
+  expandedId = row.dataset.id;
+}
+
+function collapseRowDetail(row) {
+  const detail = row.querySelector(".list-row__detail");
+  const id     = row.dataset.id;
+  // Auto-save resumo clínico on collapse if changed
+  const ta = row.querySelector(".ie-resumo");
+  const c  = allCases.find((x) => x.id === id);
+  if (ta && c && ta.value.trim() !== (c.resumo ?? "").trim()) {
+    updateDoc(caseDoc(id), { resumo: ta.value.trim(), updatedAt: serverTimestamp() })
+      .catch(() => {});
+  }
+  detail.hidden = true;
+  row.classList.remove("list-row--expanded");
+  row.querySelector(".list-row__chevron").style.transform = "";
+  if (expandedId === id) expandedId = null;
 }
 
 function toggleRowDetail(row) {
-  const detail  = row.querySelector(".list-row__detail");
-  const id      = row.dataset.id;
-  if (detail.hidden) {
-    openRowDetail(row);
-  } else {
-    // Auto-save resumo clínico on collapse if changed
-    const ta = row.querySelector(".ie-resumo");
-    const c  = allCases.find((x) => x.id === id);
-    if (ta && c && ta.value.trim() !== (c.resumo ?? "").trim()) {
-      updateDoc(caseDoc(id), { resumo: ta.value.trim(), updatedAt: serverTimestamp() })
-        .catch(() => {});
-    }
-    detail.hidden = true;
-    row.classList.remove("list-row--expanded");
-    row.querySelector(".list-row__chevron").style.transform = "";
-    expandedIds.delete(id);
-  }
+  const detail = row.querySelector(".list-row__detail");
+  if (detail.hidden) openRowDetail(row);
+  else               collapseRowDetail(row);
 }
+
+// ─── Atalhos de teclado ───────────────────────────────────────────────────────
+// Agem sempre sobre o caso descolapsado (só um fica aberto por vez).
+const AGUARDA_IHQ = "Aguarda IHQ";
+const SHORTCUT_STATUS = {
+  l: "laudado",
+  p: "pendencia",
+  o: "outros",
+  f: "fisico",
+};
+
+// Linha do caso aberto — só na lista de casos em aberto; casos liberados e
+// linhas escondidas por filtro ficam de fora.
+function expandedOpenRow() {
+  if (!expandedId) return null;
+  return caseListEl.querySelector(`.list-row[data-id="${expandedId}"].list-row--expanded`);
+}
+
+function isTypingTarget(el) {
+  if (!el) return false;
+  return el.isContentEditable
+      || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
+}
+
+function anyModalOpen() {
+  return [...document.querySelectorAll(".modal-overlay")].some((m) => !m.hidden);
+}
+
+document.addEventListener("keydown", async (e) => {
+  // Shift puro: Ctrl/Alt/Cmd são atalhos do navegador.
+  if (!e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+  // Digitando num campo, Shift+letra é maiúscula — não é atalho.
+  if (isTypingTarget(e.target)) return;
+  if (anyModalOpen() || reorderMode || selectMode) return;
+
+  const row = expandedOpenRow();
+  if (!row) return;
+  const c = allCases.find((x) => x.id === row.dataset.id);
+  if (!c) return;
+
+  if (e.key === "Delete") {
+    e.preventDefault();
+    pendingDeleteId = c.id;
+    deleteModalMsg.textContent = `Excluir o caso de "${c.nome}"? Esta ação não pode ser desfeita.`;
+    deleteModal.hidden = false;
+    confirmDelBtn.focus();
+    return;
+  }
+
+  const tecla = e.key.toLowerCase();
+
+  // Shift+I: pendência + entrada "Aguarda IHQ" no resumo em uma linha.
+  if (tecla === "i") {
+    e.preventDefault();
+    const entry = { text: AGUARDA_IHQ, ts: Date.now() };
+    try {
+      await updateDoc(caseDoc(c.id), {
+        status: "pendencia",
+        resumoLog: [...getLog(c), entry],
+        resumoLinha: entry.text,
+        updatedAt: serverTimestamp(),
+      });
+      showToast(`${c.fap} → ⏳ Pendência · ${AGUARDA_IHQ}`);
+    } catch (err) {
+      showToast("Erro ao atualizar: " + err.message, "error");
+    }
+    return;
+  }
+
+  const status = SHORTCUT_STATUS[tecla];
+  if (!status) return;
+  e.preventDefault();
+  if (c.status === status) return;
+
+  try {
+    await updateDoc(caseDoc(c.id), { status, updatedAt: serverTimestamp() });
+    const label = STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
+    showToast(`${c.fap} → ${label}`);
+  } catch (err) {
+    showToast("Erro ao mudar status: " + err.message, "error");
+  }
+});
 
 async function handleRowAction(e, c, row) {
   e.stopPropagation();
@@ -1876,6 +1975,7 @@ function exportImage() {
     "parcial":   { bar: "#f97316", bg: "#fed7aa" },
     "pendencia": { bar: "#dc2626", bg: "#fee2e2" },
     "outros":    { bar: "#93c5fd", bg: "#dbeafe" },
+    "fisico":    { bar: "#a855f7", bg: "#f3e8ff" },
   };
 
   let curY = HDR_H + 26;
@@ -1968,6 +2068,7 @@ function exportWhatsappList() {
     "parcial":   "parcialmente montado",
     "pendencia": "pendência",
     "outros":    "outros",
+    "fisico":    "caso físico",
   };
 
   const lines = items.map((c, i) => {
