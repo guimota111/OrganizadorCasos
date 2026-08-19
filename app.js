@@ -227,10 +227,12 @@ function render() {
 
   // Save unsaved textarea content from the expanded row before rebuilding
   let savedResumo = null;
+  let logFocado   = false;
   if (expandedId) {
     const r  = caseListEl.querySelector(`[data-id="${expandedId}"]`);
     const ta = r?.querySelector(".ie-resumo");
     if (ta) savedResumo = ta.value;
+    logFocado = document.activeElement === r?.querySelector(".ie-log-new");
   }
 
   // open list
@@ -247,6 +249,9 @@ function render() {
         const ta = r.querySelector(".ie-resumo");
         if (ta) ta.value = savedResumo;
       }
+      // O cursor estava no resumo em uma linha: devolve para lá, já que a
+      // linha antiga foi descartada na reconstrução.
+      if (logFocado) r.querySelector(".ie-log-new")?.focus();
     }
   }
   initDrag(caseListEl);
@@ -536,14 +541,18 @@ function anyModalOpen() {
   return [...document.querySelectorAll(".modal-overlay")].some((m) => !m.hidden);
 }
 
-// Abre o caso vizinho na lista visível (Tab / Shift+Tab), circulando nas pontas.
+// Abre o caso vizinho na lista visível (Shift+↓ / Shift+↑), circulando nas
+// pontas, e deixa o cursor no resumo em uma linha — dá para andar pela lista
+// escrevendo sem tocar no mouse.
 function moveExpanded(row, passo) {
   const rows = [...caseListEl.querySelectorAll(".list-row")];
   const idx  = rows.indexOf(row);
-  if (idx === -1 || rows.length < 2) return;
-  const alvo = rows[(idx + passo + rows.length) % rows.length];
+  if (idx === -1) return;
+  const alvo = rows.length < 2 ? row : rows[(idx + passo + rows.length) % rows.length];
   openRowDetail(alvo);
   alvo.scrollIntoView({ block: "nearest" });
+  const campo = alvo.querySelector(".ie-log-new");
+  if (campo) { campo.focus(); campo.select(); }
 }
 
 async function copiar(texto, aviso) {
@@ -559,23 +568,35 @@ async function copiar(texto, aviso) {
 document.addEventListener("keydown", async (e) => {
   // Ctrl/Alt/Cmd são atalhos do navegador.
   if (e.ctrlKey || e.altKey || e.metaKey) return;
-  // Digitando num campo, Shift+letra é maiúscula e Tab troca de campo.
-  if (isTypingTarget(e.target)) return;
   if (anyModalOpen() || reorderMode || selectMode) return;
+
+  const digitando = isTypingTarget(e.target);
+
+  // Esc tira o cursor do campo sem mouse — fora dos campos os atalhos de
+  // letra voltam a valer.
+  if (e.key === "Escape" && digitando && e.target.closest(".list-row")) {
+    e.target.blur();
+    return;
+  }
 
   const row = expandedOpenRow();
   if (!row) return;
   const c = allCases.find((x) => x.id === row.dataset.id);
   if (!c) return;
 
-  // Tab / Shift+Tab: navega entre os casos, abrindo um de cada vez.
-  if (e.key === "Tab") {
+  // Shift+↓ / Shift+↑: próximo/anterior caso, já com o cursor no resumo em uma
+  // linha. Valem também com o cursor num campo — Tab e Shift+Tab ficam livres
+  // para andar entre os campos do caso. Só o textarea fica de fora, onde
+  // Shift+seta seleciona texto.
+  if (e.shiftKey && (e.key === "ArrowDown" || e.key === "ArrowUp")
+      && e.target.tagName !== "TEXTAREA") {
     e.preventDefault();
-    moveExpanded(row, e.shiftKey ? -1 : 1);
+    moveExpanded(row, e.key === "ArrowDown" ? 1 : -1);
     return;
   }
 
-  if (!e.shiftKey) return;
+  // Digitando num campo, Shift+letra é maiúscula — não é atalho.
+  if (digitando || !e.shiftKey) return;
 
   // Shift+Enter: marca/desmarca o caso como checado (o ✓ da lista).
   if (e.key === "Enter") {
