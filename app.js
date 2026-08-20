@@ -2206,7 +2206,10 @@ function exportWhatsappReport() {
     const upd = lastLogText(c);
     if (upd) partes.push(upd);
     let linha = partes.join(" - ");
-    if (c.status === "fisico") linha += " - caso físico";
+    // O relatório agrupa por prontos/pendência/dúvida, então os status que não
+    // aparecem no agrupamento vão como legenda no fim da linha.
+    const legenda = { fisico: "caso físico", "nao-visto": "caso não visto" }[c.status];
+    if (legenda) linha += ` - ${legenda}`;
     // Estrelinha à frente de tudo marca os casos já checados.
     return c.checked ? `⭐ ${linha}` : linha;
   }
