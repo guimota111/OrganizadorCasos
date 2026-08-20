@@ -2205,7 +2205,10 @@ function exportWhatsappReport() {
     const partes = [c.fap ?? "", c.nome ?? ""];
     const upd = lastLogText(c);
     if (upd) partes.push(upd);
-    return partes.join(" - ");
+    let linha = partes.join(" - ");
+    if (c.status === "fisico") linha += " - caso físico";
+    // Estrelinha à frente de tudo marca os casos já checados.
+    return c.checked ? `⭐ ${linha}` : linha;
   }
 
   const resumoParts = [];
