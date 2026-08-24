@@ -2197,47 +2197,48 @@ function exportWhatsappReport() {
 
   if (items.length === 0) { showToast("Nenhum caso para exportar.", "error"); return; }
 
-  const prontos   = items.filter((c) => c.status === "laudado");
-  const pendencia = items.filter((c) => c.status === "pendencia");
-  const duvida    = items.filter((c) => !["laudado", "pendencia"].includes(c.status));
+  // Cada categoria do relatório junta um ou mais status do monitor. A legenda
+  // só aparece nos status que precisam ser distinguidos dentro do grupo.
+  const GRUPOS = [
+    { titulo: "Prontos pra liberar",        status: ["laudado"],              resumo: "prontos pra liberar" },
+    { titulo: "Liberável mas não montei",   status: ["visto", "parcial"],     resumo: "liberáveis mas não montados" },
+    { titulo: "Pendência",                  status: ["pendencia", "outros"],  resumo: "com pendência" },
+    { titulo: "Não vistos",                 status: ["nao-visto", "fisico"],  resumo: "não vistos" },
+  ];
+  const LEGENDA = { fisico: "caso físico", parcial: "parcialmente montado" };
 
   function linhaCase(c) {
     const partes = [c.fap ?? "", c.nome ?? ""];
     const upd = lastLogText(c);
     if (upd) partes.push(upd);
     let linha = partes.join(" - ");
-    // O relatório agrupa por prontos/pendência/dúvida, então os status que não
-    // aparecem no agrupamento vão como legenda no fim da linha.
-    const legenda = { fisico: "caso físico", "nao-visto": "caso não visto" }[c.status];
+    const legenda = LEGENDA[c.status];
     if (legenda) linha += ` - ${legenda}`;
     // Estrelinha à frente de tudo marca os casos já checados.
     return c.checked ? `⭐ ${linha}` : linha;
   }
 
-  const resumoParts = [];
-  if (prontos.length)   resumoParts.push(`${prontos.length} prontos pra liberação`);
-  if (pendencia.length) resumoParts.push(`${pendencia.length} com pendência`);
-  if (duvida.length)    resumoParts.push(`${duvida.length} em dúvida`);
+  const grupos = GRUPOS.map((g) => ({
+    ...g,
+    casos: items.filter((c) => g.status.includes(c.status ?? "nao-visto")),
+  }));
+
+  // Status que porventura não caiam em nenhum grupo não podem sumir do relatório.
+  const cobertos = GRUPOS.flatMap((g) => g.status);
+  const restantes = items.filter((c) => !cobertos.includes(c.status ?? "nao-visto"));
+  if (restantes.length) grupos.push({ titulo: "Outros", resumo: "em outros status", casos: restantes });
+
+  const comCasos = grupos.filter((g) => g.casos.length);
 
   const linhas = [];
   linhas.push(`${items.length} casos no monitor.`);
-  linhas.push(resumoParts.join(" - "));
+  linhas.push(comCasos.map((g) => `${g.casos.length} ${g.resumo}`).join(" - "));
 
-  if (prontos.length) {
+  comCasos.forEach((g) => {
     linhas.push("");
-    linhas.push("*Prontos pra liberação:*");
-    prontos.forEach((c) => linhas.push(linhaCase(c)));
-  }
-  if (pendencia.length) {
-    linhas.push("");
-    linhas.push("*Com pendência:*");
-    pendencia.forEach((c) => linhas.push(linhaCase(c) + " ❗"));
-  }
-  if (duvida.length) {
-    linhas.push("");
-    linhas.push("*Em dúvida:*");
-    duvida.forEach((c) => linhas.push(linhaCase(c)));
-  }
+    linhas.push(`*${g.titulo}:*`);
+    g.casos.forEach((c) => linhas.push(linhaCase(c)));
+  });
 
   const texto = linhas.join("\n");
   navigator.clipboard.writeText(texto).then(() => {
