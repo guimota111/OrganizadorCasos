@@ -42,6 +42,10 @@
         <p class="site-header__sub">Patologia — controle de pré-laudos</p>
       </div>
       <div class="site-header__user">
+        <div class="org-switch">
+          <select class="org-select" id="org-select" aria-label="Organizador ativo" hidden></select>
+          <button class="btn btn--ghost btn--sm" id="org-manage-btn" title="Gerenciar organizadores" aria-label="Gerenciar organizadores">⚙</button>
+        </div>
         <span class="user-chip" id="user-email"></span>
         <button class="btn btn--ghost btn--sm" id="logout-btn">Sair</button>
       </div>
@@ -443,6 +447,21 @@
   </div>
 
   <!-- ── Modal exclusão ── -->
+  <div class="modal-overlay" id="org-modal" hidden role="dialog" aria-modal="true">
+    <div class="modal">
+      <h2>🗂️ Organizadores</h2>
+      <p>Cada organizador tem a própria lista de casos, contadores e ordem de impressão. Para ver dois ao mesmo tempo, abra o outro numa segunda aba — o endereço já traz o organizador escolhido.</p>
+      <div class="org-list" id="org-list"></div>
+      <div class="org-new">
+        <input type="text" id="org-new-name" placeholder="Nome do novo organizador…" maxlength="40" />
+        <button class="btn btn--primary btn--sm" id="org-new-btn">Criar</button>
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" id="org-modal-close">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="delete-modal" hidden role="dialog" aria-modal="true">
     <div class="modal">
       <h2>Confirmar exclusão</h2>
