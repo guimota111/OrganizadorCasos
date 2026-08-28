@@ -123,6 +123,79 @@ body {
 }
 .site-header__user .btn--ghost:hover { background: rgba(255,255,255,.12); }
 
+/* ── Seletor de organizador ─────────────────────────────────────────────────── */
+.org-switch { display: flex; align-items: center; gap: 6px; }
+.org-select {
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 999px;
+  padding: 5px 12px;
+  max-width: 200px;
+  cursor: pointer;
+}
+.org-select option { color: var(--clr-text); background: #fff; }
+#org-manage-btn { padding: 5px 10px; font-size: 13px; }
+
+.org-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.org-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+}
+.org-item--active  { border-color: var(--clr-primary); background: var(--clr-primary-soft); }
+.org-item--confirm { border-color: var(--clr-danger); background: #fef2f2; }
+.org-item__name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--clr-text);
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+}
+.org-item__name:focus { outline: none; border-color: var(--clr-primary); background: #fff; }
+.org-item__badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--clr-primary);
+}
+.org-item__warn { flex: 1; font-size: 13px; color: var(--clr-danger); }
+.org-new { display: flex; gap: 8px; margin-bottom: 20px; }
+.org-new input {
+  flex: 1;
+  font-family: var(--font);
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+}
+.org-new input:focus { outline: none; border-color: var(--clr-primary); }
+
+/* "Mover para…" fica encostado à direita das ações do caso */
+.ie-mover {
+  margin-left: auto;
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  cursor: pointer;
+}
+
 /* ── Stats bar ──────────────────────────────────────────────────────────────── */
 .stats-bar {
   display: grid;
@@ -817,7 +890,11 @@ body {
   .version-tag { display: none; }
   .site-header__sub { display: none; }
   .site-header__user { gap: 6px; min-width: 0; flex-shrink: 0; }
-  .user-chip { max-width: 92px; font-size: 11px; padding: 4px 10px; }
+  /* No celular o organizador ativo importa mais que o e-mail (que não muda) */
+  .user-chip { display: none; }
+  .org-select { max-width: 108px; font-size: 11px; padding: 4px 10px; }
+  #org-manage-btn { padding: 4px 8px; }
+  .org-item { flex-wrap: wrap; }
   .site-header__user .btn { padding: 5px 10px; font-size: 12px; }
 
   /* Compact stat cards, 4 per row — menos rolagem até a lista */
