@@ -7,10 +7,20 @@ import {
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // ─── Multi-user data scoping ──────────────────────────────────────────────────
-// Each pathologist's cases live under users/{uid}/casos
-let currentUid = null;
-const casesCol = () => collection(db, "users", currentUid, "casos");
-const caseDoc  = (id) => doc(db, "users", currentUid, "casos", id);
+// Cada patologista tem seus organizadores, e cada organizador tem a própria
+// lista de casos:  users/{uid}/organizadores/{orgId}/casos
+let currentUid    = null;
+let currentOrgId  = null;
+let organizadores = [];   // [{ id, nome, ordem }] — ordenados por "ordem"
+
+const orgsCol  = ()   => collection(db, "users", currentUid, "organizadores");
+const orgDoc   = (id) => doc(db, "users", currentUid, "organizadores", id);
+const casesCol = ()   => collection(db, "users", currentUid, "organizadores", currentOrgId, "casos");
+const caseDoc  = (id) => doc(db, "users", currentUid, "organizadores", currentOrgId, "casos", id);
+
+// Caminhos de um organizador que não é o ativo — usados para mover e excluir.
+const orgCasesCol = (orgId)     => collection(db, "users", currentUid, "organizadores", orgId, "casos");
+const orgCaseDoc  = (orgId, id) => doc(db, "users", currentUid, "organizadores", orgId, "casos", id);
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let allCases        = [];
@@ -21,7 +31,8 @@ let reorderMode     = false;
 let reorderQueue    = [];   // IDs in the order the user clicks
 let selectMode      = false;
 const selectedIds   = new Set();   // IDs selected for bulk delete
-let lastPrintOrder  = JSON.parse(localStorage.getItem("lastPrintOrder") || "[]");
+// A ordem do último print é por organizador — se fosse global, a de um vazaria no outro.
+let lastPrintOrder  = [];
 // Só um caso fica descolapsado por vez: abrir um fecha os outros, e é sobre
 // ele que os atalhos de teclado agem.
 let expandedId      = null;
@@ -35,7 +46,15 @@ function quandoCasosCarregarem(fn) {
   else aguardandoCasos.push(fn);
 }
 
-// lastPrintOrder restored from localStorage — sort button always available
+// lastPrintOrder é recarregado a cada troca de organizador (ver abrirOrganizador)
+const printOrderKey = () => `lastPrintOrder:${currentUid}:${currentOrgId}`;
+function loadPrintOrder() {
+  try { lastPrintOrder = JSON.parse(localStorage.getItem(printOrderKey()) || "[]"); }
+  catch { lastPrintOrder = []; }
+}
+function savePrintOrder() {
+  try { localStorage.setItem(printOrderKey(), JSON.stringify(lastPrintOrder)); } catch { /* storage cheio */ }
+}
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const form           = document.getElementById("case-form");
@@ -152,6 +171,7 @@ loginForm.addEventListener("submit", async (e) => {
 document.getElementById("logout-btn").addEventListener("click", () => signOut(auth));
 
 let unsubscribeSnapshot = null;
+let unsubscribeOrgs     = null;
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
@@ -163,45 +183,287 @@ onAuthStateChanged(auth, async (user) => {
     loginBtn.textContent = "Entrar";
     const userEmailEl = document.getElementById("user-email");
     if (userEmailEl) userEmailEl.textContent = user.email ?? "";
-    await migrateLegacyCases();
-    unsubscribeSnapshot = onSnapshot(
-      query(casesCol(), orderBy("createdAt", "desc")),
-      (snap) => {
-        allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        render();
-        if (!casosCarregados) {
-          casosCarregados = true;
-          aguardandoCasos.splice(0).forEach((fn) => fn());
-        }
-      },
-      (err) => showToast("Erro ao carregar casos: " + err.message, "error")
-    );
+    const orgs = await garantirOrganizadores();
+    if (!orgs.length) return;
+    organizadores = orgs;
+    ouvirOrganizadores();
+    await abrirOrganizador(organizadorInicial(orgs));
   } else {
-    currentUid = null;
+    pararEscutas();
+    currentUid   = null;
+    currentOrgId = null;
+    organizadores = [];
     loginScreen.hidden  = false;
     mainHeader.hidden   = true;
     mainContent.hidden  = true;
-    if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
     casosCarregados = false;
     allCases = [];
   }
 });
 
-// One-time migration: copy docs from the legacy root "casos" collection into
-// users/{uid}/casos. Runs silently; skips if the user already has data or the
-// legacy collection is unreadable (e.g. rules already lock it down).
-async function migrateLegacyCases() {
+function pararEscutas() {
+  if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+  if (unsubscribeOrgs)     { unsubscribeOrgs();     unsubscribeOrgs = null; }
+}
+
+// ─── Organizadores ────────────────────────────────────────────────────────────
+// Migração única: quem já usava o app não tem nenhum organizador ainda. Cria o
+// "Principal" e copia para dentro dele os casos que viviam em users/{uid}/casos
+// (ou, para contas nunca migradas, na antiga coleção raiz "casos"). Os documentos
+// de origem ficam onde estão, como backup — nada é apagado.
+async function garantirOrganizadores() {
+  let snap;
   try {
-    const mine = await getDocs(casesCol());
-    if (!mine.empty) return;
-    const legacy = await getDocs(collection(db, "casos"));
-    if (legacy.empty) return;
-    const batch = writeBatch(db);
-    legacy.docs.forEach((d) => batch.set(caseDoc(d.id), d.data()));
-    await batch.commit();
-    showToast(`${legacy.size} casos migrados para sua conta.`);
+    snap = await getDocs(orgsCol());
+  } catch (err) {
+    showToast("Erro ao carregar organizadores: " + err.message, "error");
+    return [];
+  }
+  if (!snap.empty) {
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+                    .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+  }
+
+  const ref = await addDoc(orgsCol(), { nome: "Principal", ordem: 0, createdAt: serverTimestamp() });
+  const principal = { id: ref.id, nome: "Principal", ordem: 0 };
+
+  let origem = [];
+  try {
+    origem = (await getDocs(collection(db, "users", currentUid, "casos"))).docs;
+    if (!origem.length) origem = (await getDocs(collection(db, "casos"))).docs;
   } catch {
-    /* legacy collection inaccessible — nothing to migrate */
+    /* coleções antigas inacessíveis — nada a migrar */
+  }
+
+  if (origem.length) {
+    try {
+      // Lotes de 400: o limite de um writeBatch é 500 operações.
+      for (let i = 0; i < origem.length; i += 400) {
+        const batch = writeBatch(db);
+        origem.slice(i, i + 400).forEach((d) => batch.set(orgCaseDoc(principal.id, d.id), d.data()));
+        await batch.commit();
+      }
+      showToast(`${origem.length} casos migrados para o organizador "Principal".`);
+    } catch (err) {
+      showToast("Erro ao migrar casos: " + err.message, "error");
+    }
+  }
+
+  // A ordem do último print era global no navegador; passa a valer no Principal.
+  try {
+    const antiga = localStorage.getItem("lastPrintOrder");
+    if (antiga) {
+      localStorage.setItem(`lastPrintOrder:${currentUid}:${principal.id}`, antiga);
+      localStorage.removeItem("lastPrintOrder");
+    }
+  } catch { /* storage indisponível */ }
+
+  return [principal];
+}
+
+// ?org=<id> na URL vence — é o que permite deixar dois organizadores abertos em
+// abas diferentes ao mesmo tempo. Depois vem o último usado neste navegador.
+function organizadorInicial(orgs) {
+  const daUrl = new URLSearchParams(location.search).get("org");
+  if (daUrl && orgs.some((o) => o.id === daUrl)) return daUrl;
+  let salvo = null;
+  try { salvo = localStorage.getItem(`orgAtivo:${currentUid}`); } catch { /* storage indisponível */ }
+  if (salvo && orgs.some((o) => o.id === salvo)) return salvo;
+  return orgs[0].id;
+}
+
+function ouvirOrganizadores() {
+  unsubscribeOrgs = onSnapshot(
+    query(orgsCol(), orderBy("ordem")),
+    (snap) => {
+      organizadores = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderOrgSelect();
+      renderOrgList();
+      render();   // a lista de destinos "Mover para…" depende dos organizadores
+      // Organizador ativo apagado em outra aba → cai para o primeiro disponível.
+      if (currentOrgId && organizadores.length && !organizadores.some((o) => o.id === currentOrgId)) {
+        abrirOrganizador(organizadores[0].id);
+      }
+    },
+    (err) => showToast("Erro ao carregar organizadores: " + err.message, "error")
+  );
+}
+
+async function abrirOrganizador(id) {
+  if (!id || id === currentOrgId) { renderOrgSelect(); return; }
+  if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+  currentOrgId = id;
+  try { localStorage.setItem(`orgAtivo:${currentUid}`, id); } catch { /* storage indisponível */ }
+
+  // Todo estado de tela é por organizador — nada pode atravessar a troca.
+  if (reorderMode) exitReorderMode();
+  if (selectMode)  exitSelectMode();
+  if (editingId)   cancelEdit();
+  expandedId = null;
+  selectedIds.clear();
+  allCases        = [];
+  casosCarregados = false;
+  loadPrintOrder();
+  renderOrgSelect();
+  renderOrgList();
+  sincronizarUrlOrg();
+  render();
+
+  unsubscribeSnapshot = onSnapshot(
+    query(casesCol(), orderBy("createdAt", "desc")),
+    (snap) => {
+      allCases = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      render();
+      if (!casosCarregados) {
+        casosCarregados = true;
+        aguardandoCasos.splice(0).forEach((fn) => fn());
+      }
+    },
+    (err) => showToast("Erro ao carregar casos: " + err.message, "error")
+  );
+}
+
+// Mantém ?org=<id> na URL para que um F5 (ou uma segunda aba) volte no mesmo lugar.
+function sincronizarUrlOrg() {
+  const params = new URLSearchParams(location.search);
+  params.set("org", currentOrgId);
+  history.replaceState(null, "", `${location.pathname}?${params}${location.hash}`);
+}
+
+// ── Seletor no cabeçalho
+const orgSelect = document.getElementById("org-select");
+function renderOrgSelect() {
+  if (!orgSelect) return;
+  orgSelect.innerHTML = organizadores.map((o) =>
+    `<option value="${o.id}"${o.id === currentOrgId ? " selected" : ""}>${escHtml(o.nome)}</option>`
+  ).join("");
+  orgSelect.hidden = !organizadores.length;
+}
+if (orgSelect) orgSelect.addEventListener("change", (e) => abrirOrganizador(e.target.value));
+
+// ── Modal de gerenciamento
+const orgModal  = document.getElementById("org-modal");
+const orgListEl = document.getElementById("org-list");
+let orgPendingDelete = null;
+
+document.getElementById("org-manage-btn").addEventListener("click", () => {
+  orgPendingDelete = null;
+  renderOrgList();
+  orgModal.hidden = false;
+  document.getElementById("org-new-name").value = "";
+});
+document.getElementById("org-modal-close").addEventListener("click", () => { orgModal.hidden = true; });
+orgModal.addEventListener("click", (e) => { if (e.target === orgModal) orgModal.hidden = true; });
+
+function renderOrgList() {
+  if (!orgListEl) return;
+  const unico = organizadores.length < 2;
+  orgListEl.innerHTML = organizadores.map((o) => {
+    if (orgPendingDelete === o.id) {
+      return `<div class="org-item org-item--confirm" data-id="${o.id}">
+        <span class="org-item__warn">Excluir "${escHtml(o.nome)}" e todos os casos dele? Não dá para desfazer.</span>
+        <button class="btn btn--ghost btn--sm" data-org-action="cancelar">Cancelar</button>
+        <button class="btn btn--danger btn--sm" data-org-action="confirmar">Excluir</button>
+      </div>`;
+    }
+    const ativo = o.id === currentOrgId;
+    return `<div class="org-item${ativo ? " org-item--active" : ""}" data-id="${o.id}">
+      <input class="org-item__name" value="${escHtml(o.nome)}" maxlength="40" aria-label="Nome do organizador" />
+      ${ativo
+        ? `<span class="org-item__badge">ativo</span>`
+        : `<button class="btn btn--ghost btn--sm" data-org-action="abrir">Abrir</button>`}
+      <button class="btn btn--danger btn--sm" data-org-action="excluir"${unico ? ' disabled title="É preciso ter pelo menos um organizador"' : ""}>Excluir</button>
+    </div>`;
+  }).join("");
+
+  orgListEl.querySelectorAll(".org-item__name").forEach((input) => {
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") e.currentTarget.blur(); });
+    input.addEventListener("change", async (e) => {
+      const id   = e.currentTarget.closest(".org-item").dataset.id;
+      const nome = e.currentTarget.value.trim();
+      const atual = organizadores.find((o) => o.id === id);
+      if (!atual) return;
+      if (!nome) { e.currentTarget.value = atual.nome; return; }
+      if (nome === atual.nome) return;
+      try {
+        await updateDoc(orgDoc(id), { nome });
+        showToast("Organizador renomeado.");
+      } catch (err) {
+        e.currentTarget.value = atual.nome;
+        showToast("Erro ao renomear: " + err.message, "error");
+      }
+    });
+  });
+
+  orgListEl.querySelectorAll("[data-org-action]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      const id     = e.currentTarget.closest(".org-item").dataset.id;
+      const action = e.currentTarget.dataset.orgAction;
+      if (action === "abrir")     { await abrirOrganizador(id); orgModal.hidden = true; }
+      if (action === "excluir")   { orgPendingDelete = id; renderOrgList(); }
+      if (action === "cancelar")  { orgPendingDelete = null; renderOrgList(); }
+      if (action === "confirmar") { await excluirOrganizador(id); }
+    });
+  });
+}
+
+async function criarOrganizador() {
+  const input = document.getElementById("org-new-name");
+  const nome  = input.value.trim();
+  if (!nome) { showToast("Dê um nome ao organizador.", "error"); return; }
+  try {
+    const ordem = organizadores.reduce((m, o) => Math.max(m, o.ordem ?? 0), 0) + 1;
+    const ref   = await addDoc(orgsCol(), { nome, ordem, createdAt: serverTimestamp() });
+    input.value = "";
+    orgModal.hidden = true;
+    await abrirOrganizador(ref.id);
+    showToast(`Organizador "${nome}" criado.`);
+  } catch (err) {
+    showToast("Erro ao criar organizador: " + err.message, "error");
+  }
+}
+document.getElementById("org-new-btn").addEventListener("click", criarOrganizador);
+document.getElementById("org-new-name").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); criarOrganizador(); }
+});
+
+async function excluirOrganizador(id) {
+  if (organizadores.length < 2) { showToast("É preciso ter pelo menos um organizador.", "error"); return; }
+  try {
+    const casos = (await getDocs(orgCasesCol(id))).docs;
+    for (let i = 0; i < casos.length; i += 400) {
+      const batch = writeBatch(db);
+      casos.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+    await deleteDoc(orgDoc(id));
+    try { localStorage.removeItem(`lastPrintOrder:${currentUid}:${id}`); } catch { /* storage indisponível */ }
+    orgPendingDelete = null;
+    if (id === currentOrgId) {
+      const proximo = organizadores.find((o) => o.id !== id);
+      if (proximo) await abrirOrganizador(proximo.id);
+    }
+    showToast("Organizador excluído.");
+  } catch (err) {
+    showToast("Erro ao excluir organizador: " + err.message, "error");
+  }
+}
+
+// Move o caso para outro organizador: grava no destino e apaga da origem no
+// mesmo lote, para o caso nunca existir nos dois lugares (nem em nenhum).
+async function moverCaso(c, destId) {
+  const dest = organizadores.find((o) => o.id === destId);
+  if (!dest) return;
+  try {
+    const { id, ...dados } = c;
+    const batch = writeBatch(db);
+    batch.set(orgCaseDoc(destId, id), { ...dados, updatedAt: serverTimestamp() });
+    batch.delete(caseDoc(id));
+    await batch.commit();
+    if (expandedId === id) expandedId = null;
+    showToast(`Caso movido para "${dest.nome}".`);
+  } catch (err) {
+    showToast("Erro ao mover o caso: " + err.message, "error");
   }
 }
 
@@ -397,6 +659,11 @@ function buildRow(c) {
           <button class="btn btn--success btn--sm" data-action="liberar">Liberar caso</button>
           <button class="btn btn--ghost btn--sm" data-action="reclamacao">📨 Abrir reclamação</button>
           <button class="btn btn--danger btn--sm" data-action="excluir" data-nome="${escHtml(c.nome)}">Excluir</button>
+          ${organizadores.length > 1 ? `<select class="ie-mover" aria-label="Mover para outro organizador">
+            <option value="">Mover para…</option>
+            ${organizadores.filter((o) => o.id !== currentOrgId)
+                           .map((o) => `<option value="${o.id}">${escHtml(o.nome)}</option>`).join("")}
+          </select>` : ""}
         </div>
         <div class="reclamacao-panel" hidden>
           <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Explique a reclamação:</label>
@@ -463,6 +730,14 @@ function buildRow(c) {
   if (tipoSel) tipoSel.addEventListener("change", async (e) => {
     e.stopPropagation();
     await updateDoc(caseDoc(c.id), { tipo: e.target.value, updatedAt: serverTimestamp() });
+  });
+  // Mover para outro organizador
+  const moverSel = row.querySelector(".ie-mover");
+  if (moverSel) moverSel.addEventListener("change", (e) => {
+    e.stopPropagation();
+    const destId = e.target.value;
+    e.target.value = "";
+    if (destId) moverCaso(c, destId);
   });
   // Estado (UF) dropdown change
   const ufSel = row.querySelector(".ie-uf");
@@ -1078,7 +1353,7 @@ function flash(row, msg) {
     if (erro) { showToast(erro, "error"); return false; }
     if (!casos.length) { showToast("Nenhum caso com FAP de 12 dígitos no JSON.", "error"); return false; }
     lastPrintOrder = casos.map((c) => normFap(c.fap));
-    localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
+    savePrintOrder();
     importModal.hidden = false;
     showResults(casos, { fullList: true });
     return true;
@@ -1125,7 +1400,7 @@ function flash(row, msg) {
     }
     const scope = document.querySelector('input[name="import-scope"]:checked')?.value;
     lastPrintOrder = extracted.map((c) => normFap(c.fap));
-    localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
+    savePrintOrder();
     showResults(extracted, { fullList: scope === "full" });
   });
 
@@ -1265,7 +1540,7 @@ Se não encontrar casos, retorne [].`;
         .filter((c) => /^\d{12}$/.test(c.fap));
 
       lastPrintOrder = extracted.map((c) => normFap(c.fap));
-      localStorage.setItem("lastPrintOrder", JSON.stringify(lastPrintOrder));
+      savePrintOrder();
       showResults(extracted);
     } catch (err) {
       showStep(stepUpload);
