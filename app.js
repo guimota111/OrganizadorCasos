@@ -1213,6 +1213,7 @@ function flash(row, msg) {
   const stepChoose     = document.getElementById("import-step-choose");
   const stepText       = document.getElementById("import-step-text");
   const stepJson       = document.getElementById("import-step-json");
+  const stepExcel      = document.getElementById("import-step-excel");
   const stepKey        = document.getElementById("import-step-key");
   const stepUpload     = document.getElementById("import-step-upload");
   const stepLoading    = document.getElementById("import-step-loading");
@@ -1246,7 +1247,7 @@ function flash(row, msg) {
   let selectedFile = null;
 
   function showStep(step) {
-    [stepChoose, stepText, stepJson, stepKey, stepUpload, stepLoading, stepResults, stepConfirmDel]
+    [stepChoose, stepText, stepJson, stepExcel, stepKey, stepUpload, stepLoading, stepResults, stepConfirmDel]
       .forEach((s) => { s.hidden = true; });
     step.hidden = false;
   }
@@ -1258,6 +1259,7 @@ function flash(row, msg) {
     previewImg.hidden = true;
     analyzeBtn.disabled = true;
     dropzoneLabel.textContent = "Clique para selecionar imagem";
+    limparPlanilha();
   }
 
   // Choose method
@@ -1268,6 +1270,10 @@ function flash(row, msg) {
   document.getElementById("import-opt-print").addEventListener("click", () => {
     const key = localStorage.getItem("anthropic-api-key");
     showStep(key ? stepUpload : stepKey);
+  });
+  document.getElementById("import-opt-excel").addEventListener("click", () => {
+    limparPlanilha();
+    showStep(stepExcel);
   });
   document.getElementById("import-opt-json").addEventListener("click", () => {
     document.getElementById("import-json-input").value = "";
@@ -1363,6 +1369,194 @@ function flash(row, msg) {
     processarJsonMotion(document.getElementById("import-json-input").value);
   });
 
+  // ── Planilha exportada do Motion (.xls / .xlsx) ────────────────────────────
+  // Portlet "Pendências de Execução Atribuídas a Mim". Das 14 colunas do
+  // relatório usamos quatro: Requisição (a FAP), Paciente (o nome),
+  // Data Prometida (o prazo) e Executor (a UF). O resto é do fluxo do
+  // laboratório e não tem lugar no organizador.
+  const excelInput    = document.getElementById("import-excel-file");
+  const excelDropzone = document.getElementById("import-excel-dropzone");
+  const excelLabel    = document.getElementById("import-excel-dropzone-label");
+  const excelBtn      = document.getElementById("import-excel-process");
+  const loadingTitle  = document.getElementById("import-loading-title");
+  const loadingMsg    = document.getElementById("import-loading-msg");
+
+  let planilhaFile = null;
+
+  function limparPlanilha() {
+    planilhaFile = null;
+    excelInput.value = "";
+    excelLabel.textContent = "Clique para selecionar a planilha";
+    excelBtn.disabled = true;
+  }
+
+  // A biblioteca de planilha tem ~880 KB e só serve para este fluxo, então só
+  // entra na página quando a importação por planilha é usada de fato.
+  let xlsxPromise = null;
+  function carregarXLSX() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (!xlsxPromise) {
+      xlsxPromise = new Promise((resolve, reject) => {
+        const tag = document.createElement("script");
+        tag.src = "vendor/xlsx.full.min.js";
+        tag.onload = () => window.XLSX
+          ? resolve(window.XLSX)
+          : reject(new Error("a biblioteca de planilha carregou vazia"));
+        tag.onerror = () => { xlsxPromise = null; reject(new Error("não consegui carregar a biblioteca de planilha")); };
+        document.head.appendChild(tag);
+      });
+    }
+    return xlsxPromise;
+  }
+
+  // "Codigos de Ordenação" → "codigos de ordenacao". Comparar cabeçalho sem
+  // depender de acento, caixa ou espaço sobrando.
+  function normCabecalho(txt) {
+    return String(txt ?? "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .trim().toLowerCase().replace(/\s+/g, " ");
+  }
+
+  // Data Prometida → timestamp. "31/08/2026 21:00 BRT".
+  // BRT = UTC-3; BRST = UTC-2 (horário de verão, extinto em 2019, mas
+  // exportações antigas ainda trazem). Sem fuso reconhecido, vale o horário
+  // local do navegador — que aqui é o mesmo de Brasília.
+  const FUSOS_HORAS = { brt: -3, brst: -2, "gmt-3": -3, "utc-3": -3, "-03": -3, utc: 0, gmt: 0, z: 0 };
+  function dataPrometidaParaMs(valor) {
+    if (valor instanceof Date && !isNaN(valor)) return valor.getTime();
+    const txt = String(valor ?? "").trim();
+    if (!txt) return null;
+    const m = txt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?\s*([A-Za-z0-9+-]+)?$/);
+    if (!m) return null;
+    const [, dia, mes, ano, hh = "0", mm = "0", ss = "0", fuso] = m;
+    // Date "conserta" o que não existe: 31/13 viraria fevereiro do ano seguinte
+    // e 31/02 viraria março. Prazo errado é pior que prazo nenhum, então a data
+    // só passa se sobreviver ao caminho de volta.
+    if (+hh > 23 || +mm > 59 || +ss > 59) return null;
+
+    // Sempre montamos a data em UTC e só depois aplicamos o fuso: assim a volta
+    // usada para validar é uma comparação só, sem depender do fuso do navegador.
+    const off = fuso ? FUSOS_HORAS[fuso.toLowerCase()] : undefined;
+    const semFuso = new Date(Date.UTC(+ano, +mes - 1, +dia, +hh, +mm, +ss));
+    // Date "conserta" o que não existe: 31/13 viraria fevereiro do ano seguinte
+    // e 31/02 viraria março. Prazo errado é pior que prazo nenhum, então a data
+    // só passa se sobreviver ao caminho de volta.
+    if (semFuso.getUTCFullYear() !== +ano || semFuso.getUTCMonth() !== +mes - 1
+        || semFuso.getUTCDate() !== +dia) return null;
+
+    // Sem fuso reconhecido o horário é o local do navegador; com fuso, basta
+    // desfazer o deslocamento sobre o instante montado em UTC.
+    return off === undefined
+      ? new Date(+ano, +mes - 1, +dia, +hh, +mm, +ss).getTime()
+      : semFuso.getTime() - off * 3600000;
+  }
+
+  // "Dr. Fulano - AP - SP" → SP. Quando o executor não termina em UF
+  // ("… - APIM"), o caso entra sem UF e você define na mão.
+  function ufDoExecutor(txt) {
+    const m = String(txt ?? "").trim().match(/\b(RJ|SP|GO)\s*$/i);
+    return m ? m[1].toUpperCase() : "";
+  }
+
+  // Recebe a planilha como matriz de linhas (linha 0 = primeira do arquivo).
+  function parsePlanilhaMotion(linhas) {
+    const iCab = linhas.findIndex((l) => Array.isArray(l)
+      && l.some((c) => normCabecalho(c) === "requisicao")
+      && l.some((c) => normCabecalho(c) === "paciente"));
+    if (iCab === -1) {
+      return { erro: "Não achei as colunas “Requisição” e “Paciente”. Exporte pelo portlet de Pendências de Execução." };
+    }
+    const cab   = linhas[iCab].map(normCabecalho);
+    const iFap  = cab.indexOf("requisicao");
+    const iNome = cab.indexOf("paciente");
+    const iData = cab.indexOf("data prometida");
+    const iExec = cab.indexOf("executor");
+
+    // O mesmo paciente pode aparecer em duas linhas — requisição igual, códigos
+    // de ordenação diferentes (blocos distintos da mesma peça). No organizador
+    // isso é um caso só, e vale o prazo mais apertado.
+    const porFap = new Map();
+    for (let i = iCab + 1; i < linhas.length; i++) {
+      const linha = linhas[i];
+      if (!Array.isArray(linha)) continue;
+      const fap  = String(linha[iFap] ?? "").replace(/\D/g, "");
+      const nome = String(linha[iNome] ?? "").trim();
+      if (!/^\d{12}$/.test(fap) || !nome) continue;
+
+      const deadline = iData >= 0 ? dataPrometidaParaMs(linha[iData]) : null;
+      const uf       = iExec >= 0 ? ufDoExecutor(linha[iExec]) : "";
+
+      const anterior = porFap.get(fap);
+      if (!anterior) {
+        const c = { nome, fap };
+        if (deadline != null) c.deadline = deadline;
+        if (uf) c.uf = uf;
+        porFap.set(fap, c);
+        continue;
+      }
+      if (deadline != null && (anterior.deadline == null || deadline < anterior.deadline)) {
+        anterior.deadline = deadline;
+      }
+      if (!anterior.uf && uf) anterior.uf = uf;
+    }
+    return { casos: [...porFap.values()] };
+  }
+
+  async function processarPlanilha(file) {
+    loadingTitle.textContent = "📊 Lendo a planilha…";
+    loadingMsg.textContent   = "Extraindo requisições, nomes e prazos.";
+    showStep(stepLoading);
+
+    let resultado;
+    try {
+      const XLSX = await carregarXLSX();
+      const wb   = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      if (!ws) throw new Error("o arquivo não tem nenhuma planilha");
+      // raw:false entrega o texto formatado da célula — é assim que a
+      // requisição continua string de 12 dígitos em vez de virar número.
+      resultado = parsePlanilhaMotion(XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" }));
+    } catch (err) {
+      showStep(stepExcel);
+      showToast("Erro ao ler a planilha: " + err.message, "error");
+      return;
+    }
+
+    if (resultado.erro) { showStep(stepExcel); showToast(resultado.erro, "error"); return; }
+    if (!resultado.casos.length) {
+      showStep(stepExcel);
+      showToast("Nenhum caso com requisição de 12 dígitos na planilha.", "error");
+      return;
+    }
+
+    // A exportação é sempre a lista inteira de pendências atribuídas a você,
+    // então entra como fullList — habilita a seção de casos fora da lista.
+    lastPrintOrder = resultado.casos.map((c) => normFap(c.fap));
+    savePrintOrder();
+    showResults(resultado.casos, { fullList: true });
+  }
+
+  function setPlanilha(f) {
+    planilhaFile = f;
+    excelLabel.textContent = f.name;
+    excelBtn.disabled = false;
+  }
+
+  excelDropzone.addEventListener("click", () => excelInput.click());
+  excelDropzone.addEventListener("dragover", (e) => { e.preventDefault(); excelDropzone.classList.add("import-dropzone--over"); });
+  excelDropzone.addEventListener("dragleave", () => excelDropzone.classList.remove("import-dropzone--over"));
+  excelDropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    excelDropzone.classList.remove("import-dropzone--over");
+    const f = e.dataTransfer.files[0];
+    if (f) setPlanilha(f);
+  });
+  excelInput.addEventListener("change", () => {
+    if (excelInput.files[0]) setPlanilha(excelInput.files[0]);
+  });
+  excelBtn.addEventListener("click", () => { if (planilhaFile) processarPlanilha(planilhaFile); });
+  document.getElementById("import-excel-back").addEventListener("click", () => showStep(stepChoose));
+
   // Parse pasted text — FAP = last 12 digits of the numbers line, name = next line
   function parsePastedText(text) {
     const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length);
@@ -1408,6 +1602,7 @@ function flash(row, msg) {
     importModal.hidden = true;
     selectedFile = null;
     fileInput.value = "";
+    limparPlanilha();
   }
 
   document.getElementById("import-print-btn").addEventListener("click", openModal);
@@ -1459,6 +1654,8 @@ function flash(row, msg) {
     const apiKey = localStorage.getItem("anthropic-api-key");
     if (!apiKey) { showStep(stepKey); return; }
 
+    loadingTitle.textContent = "\u{1F50D} Analisando imagem\u2026";
+    loadingMsg.textContent   = "A IA est\u00e1 extraindo nomes e FAPs do print.";
     showStep(stepLoading);
 
     try {

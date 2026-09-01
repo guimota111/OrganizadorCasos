@@ -230,6 +230,10 @@
       <div id="import-step-choose">
         <h2 style="margin-bottom:16px;">📥 Importar casos</h2>
         <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="btn btn--ghost sort-method-btn" id="import-opt-excel">
+            <span style="font-size:18px;">📊</span>
+            <span><strong>Planilha do Motion</strong><br><small>Envie o .xls exportado das Pendências de Execução — sem usar IA</small></span>
+          </button>
           <button class="btn btn--ghost sort-method-btn" id="import-opt-text">
             <span style="font-size:18px;">📋</span>
             <span><strong>Colar texto</strong><br><small>Cole a lista de casos (nome e FAP) — sem usar IA</small></span>
@@ -266,6 +270,21 @@
         <div class="modal__actions" style="margin-top:16px;">
           <button class="btn btn--ghost" id="import-text-back">← Voltar</button>
           <button class="btn btn--primary" id="import-text-process">Processar</button>
+        </div>
+      </div>
+
+      <!-- Step: planilha exportada do Motion -->
+      <div id="import-step-excel" hidden>
+        <h2>📊 Planilha do Motion</h2>
+        <p>Selecione o arquivo exportado em <strong>Pendências de Execução Atribuídas a Mim</strong> (.xls ou .xlsx). A lista é tratada como completa: casos do organizador que não estiverem nela aparecem para exclusão.</p>
+        <div class="import-dropzone" id="import-excel-dropzone">
+          <input type="file" id="import-excel-file" accept=".xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none;" />
+          <span class="import-dropzone__icon">📄</span>
+          <span id="import-excel-dropzone-label">Clique para selecionar a planilha</span>
+        </div>
+        <div class="modal__actions" style="margin-top:16px;">
+          <button class="btn btn--ghost" id="import-excel-back">← Voltar</button>
+          <button class="btn btn--primary" id="import-excel-process" disabled>Processar</button>
         </div>
       </div>
 
@@ -312,8 +331,8 @@
 
       <!-- Step: Loading -->
       <div id="import-step-loading" hidden>
-        <h2>🔍 Analisando imagem…</h2>
-        <p style="color:var(--clr-text-muted);margin-top:8px;">A IA está extraindo nomes e FAPs do print.</p>
+        <h2 id="import-loading-title">🔍 Analisando imagem…</h2>
+        <p id="import-loading-msg" style="color:var(--clr-text-muted);margin-top:8px;">A IA está extraindo nomes e FAPs do print.</p>
         <div class="import-spinner" style="margin-top:24px;"></div>
       </div>
 
