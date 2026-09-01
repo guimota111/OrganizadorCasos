@@ -362,6 +362,12 @@ body {
   text-decoration: none;
 }
 .btn:active { transform: scale(.98); }
+/* Botão que ainda espera uma escolha ("Processar" sem planilha, "Analisar"
+   sem imagem) precisa parecer inerte — antes ele convidava ao clique. */
+.btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.btn:disabled:hover { background: var(--clr-primary); }
+.btn--ghost:disabled:hover { background: transparent; }
+.btn:disabled:active { transform: none; }
 .btn--primary   { background: var(--clr-primary); color: #fff; box-shadow: 0 2px 8px rgba(59,91,219,.30); }
 .btn--primary:hover { background: var(--clr-primary-dk); }
 .btn--ghost     { background: transparent; color: var(--clr-text); border: 1px solid var(--clr-border); }
